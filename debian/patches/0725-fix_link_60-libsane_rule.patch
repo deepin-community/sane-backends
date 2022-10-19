@@ -1,0 +1,33 @@
+Description: Fix directory for 20-sane.hwdb
+Author: Jörg Frings-Fürst <debian@jff.email>
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=916239
+Forwarded: not-needed
+Last-Update: 2019-04-27
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: trunk/tools/sane-desc.c
+===================================================================
+--- trunk.orig/tools/sane-desc.c
++++ trunk/tools/sane-desc.c
+@@ -3649,7 +3649,7 @@ print_udevhwdb_header (void)
+     ("#\n"
+      "# udev rules file for supported USB and SCSI devices\n"
+      "#\n"
+-     "# For the list of supported USB devices see /usr/lib/udev/hwdb.d/20-sane.hwdb\n"
++     "# For the list of supported USB devices see /lib/udev/hwdb.d/20-sane.hwdb\n"
+      "#\n"
+      "# The SCSI device support is very basic and includes only\n"
+      "# scanners that mark themselves as type \"scanner\" or\n"
+Index: trunk/testsuite/tools/data/udev+hwdb.ref
+===================================================================
+--- trunk.orig/testsuite/tools/data/udev+hwdb.ref
++++ trunk/testsuite/tools/data/udev+hwdb.ref
+@@ -3,7 +3,7 @@
+ #
+ # udev rules file for supported USB and SCSI devices
+ #
+-# For the list of supported USB devices see /usr/lib/udev/hwdb.d/20-sane.hwdb
++# For the list of supported USB devices see /lib/udev/hwdb.d/20-sane.hwdb
+ #
+ # The SCSI device support is very basic and includes only
+ # scanners that mark themselves as type "scanner" or

@@ -1,0 +1,9 @@
+#
+# watch file for sane-backends
+#
+version=4
+opts=\
+dversionmangle=s/\+(debian|dfsg|ds|deb)\d*$//,\
+uversionmangle=s/(\d)[_\.\-\+]?((RC|rc|pre|dev|beta|alpha)\d*)$/$1~$2/,\
+filenamemangle=s/.*\/archive\/(\d\S+)\/backends.*\.tar\.gz/backends-$1\.tar\.gz/g \
+  https://gitlab.com/sane-project/backends/-/tags?sort=updated_desc .*/archive/(\d\S+)/.*\.tar\.gz.*

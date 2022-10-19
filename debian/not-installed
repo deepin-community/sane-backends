@@ -1,0 +1,8 @@
+usr/lib/*/sane/*.la
+usr/lib/*/*.la
+usr/share/doc/libsane/README.*
+usr/bin/sane-config
+usr/lib/*/pkgconfig/sane-backends.pc
+usr/share/doc/libsane/LICENSE
+usr/share/doc/libsane/COPYING
+usr/share/doc/libsane/backend-writing.txt

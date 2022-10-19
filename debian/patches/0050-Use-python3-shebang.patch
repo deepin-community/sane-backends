@@ -1,0 +1,16 @@
+Description: Use python3 shebang
+Author: Jörg Frings-Fürst <debian@jff.email>
+Forwarded: not-needed
+Last-Update: 2020-08-28
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: trunk/backend/pixma/scripts/pixma_gen_options.py
+===================================================================
+--- trunk.orig/backend/pixma/scripts/pixma_gen_options.py
++++ trunk/backend/pixma/scripts/pixma_gen_options.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/env python3
+ 
+ from __future__ import print_function
+ import sys,os,re

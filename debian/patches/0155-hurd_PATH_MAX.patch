@@ -1,0 +1,364 @@
+Description: Add PATH_MAX if undefined
+Author: Jörg Frings-Fürst <debian@jff.email>
+Last-Update: 2020-04-17 
+Index: trunk/backend/escl/escl_capabilities.c
+===================================================================
+--- trunk.orig/backend/escl/escl_capabilities.c
++++ trunk/backend/escl/escl_capabilities.c
+@@ -34,6 +34,10 @@
+ 
+ #include "../include/sane/saneopts.h"
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 4096
++#endif
++
+ struct cap
+ {
+     char *memory;
+Index: trunk/backend/escl/escl.h
+===================================================================
+--- trunk.orig/backend/escl/escl.h
++++ trunk/backend/escl/escl.h
+@@ -67,6 +67,10 @@
+ # define DBGDUMP(level, buf, size)
+ #endif
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ #define ESCL_CONFIG_FILE "escl.conf"
+ 
+ 
+Index: trunk/backend/canon630u.c
+===================================================================
+--- trunk.orig/backend/canon630u.c
++++ trunk/backend/canon630u.c
+@@ -65,6 +65,10 @@
+ 
+ #include "canon630u-common.c"
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ typedef struct Canon_Device
+ {
+   struct Canon_Device *next;
+Index: trunk/backend/canon_pp.c
+===================================================================
+--- trunk.orig/backend/canon_pp.c
++++ trunk/backend/canon_pp.c
+@@ -77,6 +77,11 @@
+ #include  "../include/sane/sanei_backend.h"
+ /* #include  "../include/sane/sanei_debug.h" */
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
++
+ 
+ /* Prototypes */
+ static SANE_Status init_device(struct parport *pp);
+Index: trunk/backend/gt68xx.h
+===================================================================
+--- trunk.orig/backend/gt68xx.h
++++ trunk/backend/gt68xx.h
+@@ -51,4 +51,8 @@
+ 
+ #define GT68XX_CONFIG_FILE "gt68xx.conf"
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ #endif /* not GT68XX_H */
+Index: trunk/backend/hp3900_sane.c
+===================================================================
+--- trunk.orig/backend/hp3900_sane.c
++++ trunk/backend/hp3900_sane.c
+@@ -53,6 +53,11 @@
+ 
+ #include "hp3900_rts8822.c"
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
++
+ struct st_convert
+ {
+   SANE_Int colormode;
+Index: trunk/backend/hp4200.h
+===================================================================
+--- trunk.orig/backend/hp4200.h
++++ trunk/backend/hp4200.h
+@@ -26,6 +26,10 @@
+ #define min(a, b) (((a) < (b)) ? (a) : (b))
+ #define max(a, b) (((a) > (b)) ? (a) : (b))
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ 
+ /*--------------------------------------------------------------------------*/
+ 
+Index: trunk/backend/hp5400_sane.c
+===================================================================
+--- trunk.orig/backend/hp5400_sane.c
++++ trunk/backend/hp5400_sane.c
+@@ -87,6 +87,9 @@
+ 
+ #define NUM_GAMMA_ENTRIES  65536
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
+ 
+ /* options enumerator */
+ typedef enum
+Index: trunk/backend/hpsj5s.c
+===================================================================
+--- trunk.orig/backend/hpsj5s.c
++++ trunk/backend/hpsj5s.c
+@@ -56,6 +56,9 @@
+ #include <stdio.h>
+ #include <unistd.h>
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
+ 
+ #define LINES_TO_FEED	480	/*Default feed length */
+ 
+Index: trunk/backend/leo.c
+===================================================================
+--- trunk.orig/backend/leo.c
++++ trunk/backend/leo.c
+@@ -75,6 +75,10 @@
+ 
+ #include "leo.h"
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ /*--------------------------------------------------------------------------*/
+ 
+ /* Lists of possible scan modes. */
+Index: trunk/backend/lexmark.c
+===================================================================
+--- trunk.orig/backend/lexmark.c
++++ trunk/backend/lexmark.c
+@@ -45,6 +45,10 @@
+ 
+ #include "lexmark.h"
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ #define LEXMARK_CONFIG_FILE "lexmark.conf"
+ #define BUILD 32
+ #define MAX_OPTION_STRING_SIZE 255
+Index: trunk/backend/matsushita.c
+===================================================================
+--- trunk.orig/backend/matsushita.c
++++ trunk/backend/matsushita.c
+@@ -79,6 +79,10 @@
+ 
+ #include "matsushita.h"
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ /*--------------------------------------------------------------------------*/
+ 
+ /* Lists of possible scan modes. */
+Index: trunk/backend/p5_device.c
+===================================================================
+--- trunk.orig/backend/p5_device.c
++++ trunk/backend/p5_device.c
+@@ -1,3 +1,8 @@
++
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ /**
+  * Description of the Primax PagePartner model
+  */
+Index: trunk/backend/pie.c
+===================================================================
+--- trunk.orig/backend/pie.c
++++ trunk/backend/pie.c
+@@ -132,8 +132,11 @@
+ 
+ #define min(a,b) (((a)<(b))?(a):(b))
+ #define max(a,b) (((a)>(b))?(a):(b))
+-
+-
++
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ /* names of scanners that are supported because */
+ /* the inquiry_return_block is ok and driver is tested */
+ 
+Index: trunk/backend/pieusb.c
+===================================================================
+--- trunk.orig/backend/pieusb.c
++++ trunk/backend/pieusb.c
+@@ -107,6 +107,10 @@ extern void write_tiff_rgbi_header (FILE
+ #define DBG_info_scan   11      /* information scanner commands */
+ #define DBG_info_usb    13      /* information usb level functions */
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ /* device flags */
+ 
+ #define FLAG_SLIDE_TRANSPORT 0x01
+Index: trunk/backend/plustek-usb.c
+===================================================================
+--- trunk.orig/backend/plustek-usb.c
++++ trunk/backend/plustek-usb.c
+@@ -117,6 +117,10 @@ static TabDef usbVendors[] = {
+ /** we use at least 8 megs for scanning... */
+ #define _SCANBUF_SIZE (8 * 1024 * 1024)
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ /********************** the USB scanner interface ****************************/
+ 
+ /** remove the slash out of the model-name to obtain a valid filename
+Index: trunk/backend/sceptre.c
+===================================================================
+--- trunk.orig/backend/sceptre.c
++++ trunk/backend/sceptre.c
+@@ -77,6 +77,10 @@
+ 
+ #include "sceptre.h"
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ /*--------------------------------------------------------------------------*/
+ 
+ static const SANE_String scan_mode_list[] = { LINEART_STR, HALFTONE_STR,
+Index: trunk/backend/sp15c.c
+===================================================================
+--- trunk.orig/backend/sp15c.c
++++ trunk/backend/sp15c.c
+@@ -225,6 +225,10 @@
+ #include "sp15c-scsi.h"
+ #include "sp15c.h"
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ /* ------------------------------------------------------------------------- */
+ 
+ static const char negativeStr[] = "Negative";
+Index: trunk/backend/stv680.c
+===================================================================
+--- trunk.orig/backend/stv680.c
++++ trunk/backend/stv680.c
+@@ -98,6 +98,10 @@
+ 
+ #define TIMEOUT 1000
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ /*--------------------------------------------------------------------------*/
+ /* Lists of possible scan modes. */
+ static SANE_String_Const scan_mode_list[] = {
+Index: trunk/backend/teco1.c
+===================================================================
+--- trunk.orig/backend/teco1.c
++++ trunk/backend/teco1.c
+@@ -83,6 +83,10 @@
+ #define sanei_scsi_close(a)   SANE_STATUS_GOOD
+ #endif
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ /*--------------------------------------------------------------------------*/
+ 
+ /* Lists of possible scan modes. */
+Index: trunk/backend/teco2.c
+===================================================================
+--- trunk.orig/backend/teco2.c
++++ trunk/backend/teco2.c
+@@ -103,6 +103,10 @@
+ #define sanei_scsi_close(a)   SANE_STATUS_GOOD
+ #endif
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ /* For debugging purposes: output a stream straight out from the
+  * scanner without reordering the colors, 0=normal, 1 = raw. */
+ static int raw_output = 0;
+Index: trunk/backend/teco3.c
+===================================================================
+--- trunk.orig/backend/teco3.c
++++ trunk/backend/teco3.c
+@@ -75,6 +75,10 @@
+ 
+ #include "teco3.h"
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ /*--------------------------------------------------------------------------*/
+ 
+ /* Lists of possible scan modes. */
+Index: trunk/backend/test.c
+===================================================================
+--- trunk.orig/backend/test.c
++++ trunk/backend/test.c
+@@ -74,6 +74,10 @@
+ 
+ #define TEST_CONFIG_FILE "test.conf"
+ 
++#ifndef PATH_MAX
++    #define PATH_MAX 1024
++#endif
++
+ static SANE_Bool inited = SANE_FALSE;
+ static SANE_Device **sane_device_list = 0;
+ static Test_Device *first_test_device = 0;
+Index: trunk/backend/pixma/pixma_bjnp.c
+===================================================================
+--- trunk.orig/backend/pixma/pixma_bjnp.c
++++ trunk/backend/pixma/pixma_bjnp.c
+@@ -117,6 +117,12 @@
+ # endif
+ #endif
+ 
++#ifndef HOST_NAME_MAX
++    #define HOST_NAME_MAX 64
++#endif
++
++
++
+ /* static data */
+ static bjnp_device_t device[BJNP_NO_DEVICES];
+ static int bjnp_no_devices = 0;

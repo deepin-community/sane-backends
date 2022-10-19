@@ -1,0 +1,45 @@
+Description: Keep /usr/lib/sane as a fallback for SANE backends
+ Make /usr/lib/arch_triplet/sane the default location for SANE backends,
+ but keep /usr/lib/sane as a fallback for now.
+Author: Julien BLACHE <jblache@debian.org>
+
+Index: trunk/backend/dll.c
+===================================================================
+--- trunk.orig/backend/dll.c
++++ trunk/backend/dll.c
+@@ -470,7 +470,7 @@ load (struct backend *be)
+ 
+   if (path)
+     {
+-      src_len = strlen (path) + strlen (DIR_SEP) + strlen(LIBDIR) + 1;
++      src_len = strlen (path) + strlen (DIR_SEP) + strlen(DEB_DLL_LIBDIR) + 1;
+       src = malloc (src_len);
+       if (!src)
+ 	{
+@@ -480,11 +480,11 @@ load (struct backend *be)
+       if (orig_src)
+         free (orig_src);
+       orig_src = src;
+-      snprintf (src, src_len, "%s%s%s", path, DIR_SEP, LIBDIR);
++      snprintf (src, src_len, "%s%s%s", path, DIR_SEP, DEB_DLL_LIBDIR);
+     }
+   else
+     {
+-      src = LIBDIR;
++      src = DEB_DLL_LIBDIR;
+       src = strdup (src);
+       if (!src)
+ 	{
+Index: trunk/backend/Makefile.am
+===================================================================
+--- trunk.orig/backend/Makefile.am
++++ trunk/backend/Makefile.am
+@@ -4,7 +4,7 @@
+ ##  This file is part of the "Sane" build infra-structure.  See
+ ##  included LICENSE file for license information.
+ 
+-AM_CPPFLAGS += -I. -I$(srcdir) -I$(top_builddir)/include -I$(top_srcdir)/include $(USB_CFLAGS) -DLIBDIR="\"$(libdir)/sane\""
++AM_CPPFLAGS += -I. -I$(srcdir) -I$(top_builddir)/include -I$(top_srcdir)/include $(USB_CFLAGS) -DLIBDIR="\"$(libdir)/sane\"" -DDEB_DLL_LIBDIR="\"$(libdir)/sane:$(prefix)/lib/sane\:$(prefix)/lib64/sane\""
+ 
+ AM_LDFLAGS += $(STRICT_LDFLAGS)
+ # The -rpath option is added because we are creating _LTLIBRARIES based

@@ -1,0 +1,84 @@
+Description: Correct source typos
+Author: Jörg Frings-Fürst <debian@jff-webhosting.net>
+Forwarded: not-needed
+Last-Update: 2019-04-28
+----
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: trunk/doc/sane-epjitsu.man
+===================================================================
+--- trunk.orig/doc/sane-epjitsu.man
++++ trunk/doc/sane-epjitsu.man
+@@ -42,7 +42,7 @@ Scanners can be specified in the configu
+ .PP
+ "usb 0x04c5 0x10c7" (or other vendor/product ids)
+ .RS
+-Requests backend to search all usb busses in the system for a device which uses that vendor and product id. The device will then be queried to determine if it is a supported scanner.
++Requests backend to search all usb buses in the system for a device which uses that vendor and product id. The device will then be queried to determine if it is a supported scanner.
+ .RE
+ .PP
+ "usb /dev/usb/scanner0" (or other device file)
+Index: trunk/backend/apple.c
+===================================================================
+--- trunk.orig/backend/apple.c
++++ trunk/backend/apple.c
+@@ -1546,7 +1546,7 @@ init_options (Apple_Scanner * s)
+   /* Use volt_ref */
+   s->opt[OPT_VOLT_REF].name = "volt-ref";
+   s->opt[OPT_VOLT_REF].title = "Volt Reference";
+-  s->opt[OPT_VOLT_REF].desc ="It's brightness equivalant.";
++  s->opt[OPT_VOLT_REF].desc ="It's brightness equivalent.";
+   s->opt[OPT_VOLT_REF].type = SANE_TYPE_BOOL;
+   if (s->hw->ScannerModel!=COLORONESCANNER)
+     s->opt[OPT_VOLT_REF].cap |= SANE_CAP_INACTIVE;
+Index: trunk/tools/umax_pp.c
+===================================================================
+--- trunk.orig/tools/umax_pp.c
++++ trunk/tools/umax_pp.c
+@@ -374,10 +374,10 @@ main (int argc, char **argv)
+       if (sanei_umax_pp_initPort (port, name) != 1)
+ 	{
+ 	  if (port)
+-	    fprintf (stderr, "failed to gain direct acces to port 0x%X!\n",
++	    fprintf (stderr, "failed to gain direct access to port 0x%X!\n",
+ 		     port);
+ 	  else
+-	    fprintf (stderr, "failed to gain acces to device %s!\n", name);
++	    fprintf (stderr, "failed to gain access to device %s!\n", name);
+ 	  return 0;
+ 	}
+     }
+Index: trunk/doc/saned.man
+===================================================================
+--- trunk.orig/doc/saned.man
++++ trunk/doc/saned.man
+@@ -254,7 +254,7 @@ to the systemd journal. The systemd supp
+ requires compilation with the systemd-devel package
+ installed on the system. this is the preferred option.
+ 
+-Saned can be used wih systemd without the systemd integration
++Saned can be used with systemd without the systemd integration
+ compiled in, but then logging of debug information is not supported.
+ 
+ The systemd configuration is different for the 2 options, so
+Index: trunk/doc/sane-pixma.man
+===================================================================
+--- trunk.orig/doc/sane-pixma.man
++++ trunk/doc/sane-pixma.man
+@@ -328,7 +328,7 @@ This will cause all further statements i
+ .IP -
+ A line that contains
+ .B auto_detection=no
+-will cause auto-detection to be skipped. Explicitely defined network scanners will still be probed.
++will cause auto-detection to be skipped. Explicitly defined network scanners will still be probed.
+ .SH USB SUPPORT
+ USB scanners will be auto-detected and require no configuration.
+ .SH NETWORKING SUPPORT
+@@ -358,7 +358,7 @@ common subnet for scanning.
+ .PP
+ Scanner detection is slightly more complicated. The pixma backend sends
+ a broadcast on all direct connected subnets it can find (provided your OS
+-allows for enumeration of all netowrk interfaces). The broadcast is sent FROM
++allows for enumeration of all network interfaces). The broadcast is sent FROM
+ port 8612 TO port 8610 or 8612 on the broadcast address of each interface.
+ The outgoing packets will be allowed by the rule described above.
+ .PP

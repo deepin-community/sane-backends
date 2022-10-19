@@ -1,0 +1,27 @@
+Description: Disable lock test at buildtime
+Author: Jörg Frings-Fürst <debian@jff.emaill>
+Forwarded: not-needed
+Last-Update: 2020-08-28
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: trunk/acinclude.m4
+===================================================================
+--- trunk.orig/acinclude.m4
++++ trunk/acinclude.m4
+@@ -356,11 +356,11 @@ AC_DEFUN([SANE_CHECK_LOCKING],
+     touch sanetest.file
+     chgrp $LOCKPATH_GROUP sanetest.file 2>/dev/null || lasterror=$?
+     rm -f sanetest.file
+-    if test ! -z "$lasterror"; then
+-      AC_MSG_WARN([Group $LOCKPATH_GROUP does not exist on this system.])
+-      AC_MSG_WARN([Locking feature will be disabled.])
+-      use_locking=no
+-    fi
++#    if test ! -z "$lasterror"; then
++#      AC_MSG_WARN([Group $LOCKPATH_GROUP does not exist on this system.])
++#      AC_MSG_WARN([Locking feature will be disabled.])
++#      use_locking=no
++#    fi
+   fi
+   if test $use_locking = yes ; then
+     INSTALL_LOCKPATH=install-lockpath

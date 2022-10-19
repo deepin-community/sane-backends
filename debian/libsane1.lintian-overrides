@@ -1,0 +1,7 @@
+#
+# doc/gt68xx/gt68xx.CHANGES:442:- Added "afe" option for gt68xx.conf for selecting default afe values.
+#
+libsane1: spelling-error-in-binary usr/lib/x86_64-linux-gnu/sane/libsane-artec_eplus48u.so.1.0.32 afe safe
+libsane1: spelling-error-in-binary usr/lib/x86_64-linux-gnu/sane/libsane-canon_dr.so.1.0.32 afe safe
+libsane1: spelling-error-in-binary usr/lib/x86_64-linux-gnu/sane/libsane-gt68xx.so.1.0.32 afe safe
+

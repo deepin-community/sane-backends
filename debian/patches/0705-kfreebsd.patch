@@ -1,0 +1,17 @@
+description: Fix build failure on kfreebsd (closes: #680234)
+author: Petr Salinger
+Index: trunk/backend/umax_pp_low.c
+===================================================================
+--- trunk.orig/backend/umax_pp_low.c
++++ trunk/backend/umax_pp_low.c
+@@ -72,8 +72,10 @@
+ #endif
+ 
+ #ifdef HAVE_MACHINE_CPUFUNC_H
++#ifndef __GLIBC__
+ #include <machine/cpufunc.h>
+ #endif
++#endif
+ 
+ #ifdef HAVE_I386_SET_IOPERM
+ #include <machine/sysarch.h>

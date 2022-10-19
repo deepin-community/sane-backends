@@ -1,0 +1,90 @@
+Description: Avoid assertion failure when net_avahi_init failed
+Author: Andreas Henriksson <andreas@fatal.se>
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=861112
+Forwarded: not-needed
+Last-Update: 2017-06-20
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: trunk/backend/net.c
+===================================================================
+--- trunk.orig/backend/net.c
++++ trunk/backend/net.c
+@@ -769,7 +769,7 @@ net_avahi_browse_callback (AvahiServiceB
+     {
+       case AVAHI_BROWSER_FAILURE:
+ 	DBG (1, "net_avahi_browse_callback: %s\n", avahi_strerror (avahi_client_errno (avahi_service_browser_get_client (b))));
+-	avahi_threaded_poll_quit (avahi_thread);
++	if (avahi_thread) avahi_threaded_poll_quit (avahi_thread);
+ 	return;
+ 
+       case AVAHI_BROWSER_NEW:
+@@ -834,7 +834,7 @@ net_avahi_callback (AvahiClient *c, Avah
+ 	if (avahi_browser == NULL)
+ 	  {
+ 	    DBG (1, "net_avahi_callback: could not create service browser: %s\n", avahi_strerror (avahi_client_errno (c)));
+-	    avahi_threaded_poll_quit (avahi_thread);
++	    if (avahi_thread) avahi_threaded_poll_quit (avahi_thread);
+ 	  }
+ 	break;
+ 
+@@ -857,14 +857,14 @@ net_avahi_callback (AvahiClient *c, Avah
+ 	    if (avahi_client == NULL)
+ 	      {
+ 		DBG (1, "net_avahi_init: could not create Avahi client: %s\n", avahi_strerror (error));
+-		avahi_threaded_poll_quit (avahi_thread);
++		if (avahi_thread) avahi_threaded_poll_quit (avahi_thread);
+ 	      }
+ 	  }
+ 	else
+ 	  {
+ 	    /* Another error happened - game over */
+ 	    DBG (1, "net_avahi_callback: server connection failure: %s\n", avahi_strerror (error));
+-	    avahi_threaded_poll_quit (avahi_thread);
++	    if (avahi_thread) avahi_threaded_poll_quit (avahi_thread);
+ 	  }
+ 	break;
+     }
+@@ -1043,12 +1043,12 @@ sane_init (SANE_Int * version_code, SANE
+ 	      continue;
+ 	    }
+ #if WITH_AVAHI
+-	  avahi_threaded_poll_lock (avahi_thread);
++	  if (avahi_thread) avahi_threaded_poll_lock (avahi_thread);
+ #endif /* WITH_AVAHI */
+ 	  DBG (2, "sane_init: trying to add %s\n", device_name);
+ 	  add_device (device_name, 0);
+ #if WITH_AVAHI
+-	  avahi_threaded_poll_unlock (avahi_thread);
++	  if (avahi_thread) avahi_threaded_poll_unlock (avahi_thread);
+ #endif /* WITH_AVAHI */
+ 	}
+ 
+@@ -1094,12 +1094,12 @@ sane_init (SANE_Int * version_code, SANE
+ 		  continue;
+ #endif /* ENABLE_IPV6 */
+ #if WITH_AVAHI
+-	      avahi_threaded_poll_lock (avahi_thread);
++	      if (avahi_thread) avahi_threaded_poll_lock (avahi_thread);
+ #endif /* WITH_AVAHI */
+ 	      DBG (2, "sane_init: trying to add %s\n", host);
+ 	      add_device (host, 0);
+ #if WITH_AVAHI
+-	      avahi_threaded_poll_unlock (avahi_thread);
++	      if (avahi_thread) avahi_threaded_poll_unlock (avahi_thread);
+ #endif /* WITH_AVAHI */
+ 	    }
+ 	  free (copy);
+@@ -1517,11 +1517,11 @@ sane_open (SANE_String_Const full_name,
+ 	   "sane_open: device %s not found, trying to register it anyway\n",
+ 	   nd_name);
+ #if WITH_AVAHI
+-      avahi_threaded_poll_lock (avahi_thread);
++      if (avahi_thread) avahi_threaded_poll_lock (avahi_thread);
+ #endif /* WITH_AVAHI */
+       status = add_device (nd_name, &dev);
+ #if WITH_AVAHI
+-      avahi_threaded_poll_unlock (avahi_thread);
++      if (avahi_thread) avahi_threaded_poll_unlock (avahi_thread);
+ #endif /* WITH_AVAHI */
+       if (status != SANE_STATUS_GOOD)
+ 	{

@@ -1,0 +1,18 @@
+etc/
+usr/share/man/man7
+usr/share/locale/
+usr/share/man/man5/sane-scsi.5
+usr/share/man/man5/sane-usb.5
+usr/share/doc/libsane/mustek_usb2/* usr/share/doc/libsane-common/mustek_usb2
+usr/share/doc/libsane/teco/* usr/share/doc/libsane-common/teco
+usr/share/doc/libsane/u12/* usr/share/doc/libsane-common/u12
+usr/share/doc/libsane/niash/* usr/share/doc/libsane-common/niash
+usr/share/doc/libsane/mustek_usb/* usr/share/doc/libsane-common/mustek_usb
+usr/share/doc/libsane/leo/* usr/share/doc/libsane-common/leo
+usr/share/doc/libsane/canon/* usr/share/doc/libsane-common/canon
+usr/share/doc/libsane/plustek/* usr/share/doc/libsane-common/plustek
+usr/share/doc/libsane/mustek/* usr/share/doc/libsane-common/mustek
+usr/share/doc/libsane/gt68xx/* usr/share/doc/libsane-common/gt68xx
+usr/share/doc/libsane/matsushita/* usr/share/doc/libsane-common/matsushita
+usr/share/doc/libsane/sceptre/* usr/share/doc/libsane-common/sceptre
+usr/share/doc/libsane/umax/* usr/share/doc/libsane-common/umax

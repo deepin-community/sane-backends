@@ -1,0 +1,96 @@
+Description: Fix test
+Author: Jörg Frings-Fürst <debian@jff.email>
+Bug: https://gitlab.com/sane-project/backends/-/issues/443
+Last-Update: 2021-02-17
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: trunk/testsuite/tools/data/db.ref
+===================================================================
+--- trunk.orig/testsuite/tools/data/db.ref
++++ trunk/testsuite/tools/data/db.ref
+@@ -1,5 +1,5 @@
+ # This file was generated from description files (*.desc)
+-# by sane-desc 3.6 from sane-backends 1.0.29-241-g1f9590ab
++# by sane-desc 3.6 from sane-backends 1.0.32-debian
+ #
+ # The entries below are used to detect a USB device when it's plugged in
+ # and then run a script to change the ownership and
+Index: trunk/testsuite/tools/data/html-backends-split.ref
+===================================================================
+--- trunk.orig/testsuite/tools/data/html-backends-split.ref
++++ trunk/testsuite/tools/data/html-backends-split.ref
+@@ -16496,6 +16496,6 @@ Grandtek Scopecam
+ >Contact</a>
+ </address>
+ <font size=-1>
+-This page was created by sane-desc 3.6 from sane-backends 1.0.29-241-g1f9590ab
++This page was created by sane-desc 3.6 from sane-backends 1.0.32-debian
+ </font>
+ </body> </html>
+Index: trunk/testsuite/tools/data/html-mfgs.ref
+===================================================================
+--- trunk.orig/testsuite/tools/data/html-mfgs.ref
++++ trunk/testsuite/tools/data/html-mfgs.ref
+@@ -23910,6 +23910,6 @@ qcam<br>(unmaintained)
+ >Contact</a>
+ </address>
+ <font size=-1>
+-This page was created by sane-desc 3.6 from sane-backends 1.0.29-241-g1f9590ab
++This page was created by sane-desc 3.6 from sane-backends 1.0.32-debian
+ </font>
+ </body> </html>
+Index: trunk/testsuite/tools/data/hwdb.ref
+===================================================================
+--- trunk.orig/testsuite/tools/data/hwdb.ref
++++ trunk/testsuite/tools/data/hwdb.ref
+@@ -1,5 +1,5 @@
+ # This file was generated from description files (*.desc)
+-# by sane-desc 3.6 from sane-backends 1.0.29-241-g1f9590ab
++# by sane-desc 3.6 from sane-backends 1.0.32-debian
+ #
+ # hwdb file for supported USB devices
+ #
+Index: trunk/testsuite/tools/data/udev+acl.ref
+===================================================================
+--- trunk.orig/testsuite/tools/data/udev+acl.ref
++++ trunk/testsuite/tools/data/udev+acl.ref
+@@ -1,5 +1,5 @@
+ # This file was generated from description files (*.desc)
+-# by sane-desc 3.6 from sane-backends 1.0.31-118-g5d3ce7806
++# by sane-desc 3.6 from sane-backends 1.0.32-debian
+ #
+ # udev rules file for supported USB and SCSI devices
+ #
+Index: trunk/testsuite/tools/data/udev+hwdb.ref
+===================================================================
+--- trunk.orig/testsuite/tools/data/udev+hwdb.ref
++++ trunk/testsuite/tools/data/udev+hwdb.ref
+@@ -1,5 +1,5 @@
+ # This file was generated from description files (*.desc)
+-# by sane-desc 3.6 from sane-backends 1.0.29-241-g1f9590ab
++# by sane-desc 3.6 from sane-backends 1.0.32-debian
+ #
+ # udev rules file for supported USB and SCSI devices
+ #
+Index: trunk/testsuite/tools/data/udev.ref
+===================================================================
+--- trunk.orig/testsuite/tools/data/udev.ref
++++ trunk/testsuite/tools/data/udev.ref
+@@ -1,5 +1,5 @@
+ # This file was generated from description files (*.desc)
+-# by sane-desc 3.6 from sane-backends 1.0.31-118-g5d3ce7806
++# by sane-desc 3.6 from sane-backends 1.0.32-debian
+ #
+ # udev rules file for supported USB and SCSI devices
+ #
+Index: trunk/testsuite/tools/data/usermap.ref
+===================================================================
+--- trunk.orig/testsuite/tools/data/usermap.ref
++++ trunk/testsuite/tools/data/usermap.ref
+@@ -1,5 +1,5 @@
+ # This file was generated from description files (*.desc)
+-# by sane-desc 3.6 from sane-backends 1.0.29-241-g1f9590ab
++# by sane-desc 3.6 from sane-backends 1.0.32-debian
+ #
+ # The entries below are used to detect a USB device and change owner
+ # and permissions on the "device node" used by libusb.

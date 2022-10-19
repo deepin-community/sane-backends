@@ -1,0 +1,43 @@
+Description: eturn_empty_list_when_local_devices_requested
+Author: Barnabás Pőcze <pobrn@protonmail.com>
+Origin: backport, https://gitlab.com/sane-project/backends/-/commit/c946aa5a84297f33b30cddb0c89fcf375ed65d10
+Bug: https://gitlab.com/sane-project/backends/-/merge_requests/506
+Forwarded: not-needed
+Last-Update: 2020-09-19
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: trunk/backend/dell1600n_net.c
+===================================================================
+--- trunk.orig/backend/dell1600n_net.c
++++ trunk/backend/dell1600n_net.c
+@@ -233,6 +233,9 @@ static void JpegDecompTermSource (j_deco
+ /* Results of last call to sane_get_devices */
+ static struct DeviceRecord *gKnownDevices[MAX_SCANNERS];
+ 
++/* Empty list for when network devices are not wanted */
++static const SANE_Device *gEmptyDeviceList[1];
++
+ /* Array of open scanner device states.
+    :NOTE: (int)SANE_Handle is an offset into this array */
+ static struct ScannerState *gOpenScanners[MAX_SCANNERS];
+@@ -306,15 +309,17 @@ sane_get_devices (const SANE_Device ***
+   const char *pVal;
+   int valLen;
+ 
++  if (local_only) {
++    *device_list = gEmptyDeviceList;
++    return SANE_STATUS_GOOD;
++  }
++
+   /* init variables */
+   ret = SANE_STATUS_GOOD;
+   sock = 0;
+   pDevice = NULL;
+   optYes = 1;
+ 
+-  if (local_only)
+-    return ret;
+-
+   InitComBuf (&queryPacket);
+ 
+   /* clear previous results */

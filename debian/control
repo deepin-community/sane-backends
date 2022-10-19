@@ -1,0 +1,158 @@
+Source: sane-backends
+Section: graphics
+Priority: optional
+Maintainer: Jörg Frings-Fürst <debian@jff.email>
+Standards-Version: 4.6.0
+Build-Depends:
+ autoconf,
+ autoconf-archive,
+ chrpath,
+ debhelper-compat (= 13),
+ gettext,
+ libavahi-client-dev,
+ libcam-dev [kfreebsd-any],
+ libcups2-dev,
+ libcurl4-gnutls-dev,
+ libgphoto2-dev,
+ libieee1284-3-dev [!hurd-i386],
+ libjpeg-dev,
+ libltdl3-dev,
+ libpoppler-glib-dev,
+ libsnmp-dev [!kfreebsd-any],
+ libsystemd-dev [linux-any],
+ libtiff-dev,
+ libusb-1.0-0-dev,
+ libxml2-dev,
+ pkg-config,
+ po-debconf,
+ xutils-dev,
+ python3-minimal:any
+Homepage: http://www.sane-project.org
+Vcs-Git: git://jff.email/opt/git/sane-backends.git
+Vcs-Browser: https://jff.email/cgit/sane-backends.git
+Rules-Requires-Root: no
+
+Package: sane-utils
+Architecture: any
+Multi-Arch: foreign
+Depends:
+ adduser,
+ lsb-base (>= 3.0-6),
+ update-inetd,
+ ${misc:Depends},
+ ${shlibs:Depends}
+Pre-Depends:
+ ${misc:Pre-Depends}
+Breaks: libsane-common (<<1.0.27-1~)
+Replaces: libsane-common (<<1.0.27-1~)
+Suggests: avahi-daemon, unpaper
+Description: API library for scanners -- utilities
+ SANE stands for "Scanner Access Now Easy" and is an application
+ programming interface (API) that provides standardized access to any
+ raster image scanner hardware (flatbed scanner, hand-held scanner,
+ video- and still-cameras, frame-grabbers, etc.). The SANE standard is
+ free and its discussion and development are open to everybody. The
+ current source code is written to support several operating systems,
+ including GNU/Linux, OS/2, Win32 and various Unices and is available
+ under the GNU General Public License (commercial applications and
+ backends are welcome, too, however).
+ .
+ This package includes the command line frontend scanimage, the saned
+ server and the sane-find-scanner utility, along with their documentation.
+
+Package: libsane-common
+Section: libs
+Architecture: all
+Multi-Arch: foreign
+Pre-Depends:
+ dpkg (>= 1.15.7.2)
+Depends: ${misc:Depends}
+Breaks: sane-utils (<<1.0.27-1~)
+Description: API library for scanners -- documentation and support files
+ SANE stands for "Scanner Access Now Easy" and is an application
+ programming interface (API) that provides standardized access to any
+ raster image scanner hardware (flatbed scanner, hand-held scanner,
+ video- and still-cameras, frame-grabbers, etc.). The SANE standard is
+ free and its discussion and development are open to everybody. The
+ current source code is written to support several operating systems,
+ including GNU/Linux, OS/2, Win32 and various Unices and is available
+ under the GNU General Public License (commercial applications and
+ backends are welcome, too, however).
+ .
+ This package includes documentation for libsane, such as the man pages
+ and list of supported scanners, and support files (i18n data).
+
+Package: libsane1
+Section: libs
+Architecture: any
+Multi-Arch: same
+Breaks: libsane (<< 1.0.29-1~)
+Replaces: libsane (<< 1.0.29-1~)
+Provides: libsane (= ${binary:Version})
+Depends:
+ acl [linux-any],
+ adduser,
+ libsane-common (= ${source:Version}),
+ udev [linux-any],
+ ${misc:Depends},
+ ${shlibs:Depends}
+Recommends:
+ sane-utils (>= ${binary:Version}),
+ ipp-usb
+Suggests: avahi-daemon, hplip
+Description: API library for scanners
+ SANE stands for "Scanner Access Now Easy" and is an application
+ programming interface (API) that provides standardized access to any
+ raster image scanner hardware (flatbed scanner, hand-held scanner,
+ video- and still-cameras, frame-grabbers, etc.). The SANE standard is
+ free and its discussion and development are open to everybody. The
+ current source code is written to support several operating systems,
+ including GNU/Linux, OS/2, Win32 and various Unices and is available
+ under the GNU General Public License (commercial applications and
+ backends are welcome, too, however).
+ .
+ Graphical frontends for sane are available in the packages sane and
+ xsane. Command line frontend scanimage, saned and sane-find-scanner are
+ available in the sane-utils package.
+
+Package: libsane-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends:
+ libsane1 (= ${binary:Version}),
+ ${misc:Depends}
+Description: API development library for scanners [development files]
+ SANE stands for "Scanner Access Now Easy" and is an application
+ programming interface (API) that provides standardized access to any
+ raster image scanner hardware (flatbed scanner, hand-held scanner,
+ video- and still-cameras, frame-grabbers, etc.). The SANE standard is
+ free and its discussion and development are open to everybody. The
+ current source code is written to support several operating systems,
+ including GNU/Linux, OS/2, Win32 and various Unices and is available
+ under the GNU General Public License (commercial applications and
+ backends are welcome, too, however).
+ .
+ This package contains the files needed to build your applications
+ using SANE.
+
+Package: libsane
+Architecture: any
+Multi-Arch: same
+Section: oldlibs
+Depends:
+ libsane1 (>= ${source:Version}),
+ ${misc:Depends}
+Description: API library for scanners [transitional package]
+ SANE stands for "Scanner Access Now Easy" and is an application
+ programming interface (API) that provides standardized access to any
+ raster image scanner hardware (flatbed scanner, hand-held scanner,
+ video- and still-cameras, frame-grabbers, etc.). The SANE standard is
+ free and its discussion and development are open to everybody. The
+ current source code is written to support several operating systems,
+ including GNU/Linux, OS/2, Win32 and various Unices and is available
+ under the GNU General Public License (commercial applications and
+ backends are welcome, too, however).
+ .
+ This package is here to ensure smooth upgrades. It can be removed when
+ you see fit.

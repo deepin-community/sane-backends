@@ -1,0 +1,159 @@
+#!/usr/bin/make -f
+#export DH_VERBOSE=1
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+include /usr/share/dpkg/default.mk
+
+ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
+	CFLAGS += -g
+endif
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
+	INSTALL_PROGRAM += -s
+	INSTALL_STRIP_FLAG = ""
+	STRIP = ""
+endif
+
+ifeq (,$(filter hurd-i386,$(DEB_HOST_ARCH)))
+	INS_CONF = --enable-parport-directio
+else
+	INS_CONF = ""
+endif
+
+%:
+	dh $@
+
+ifeq ($(DEB_BUILD_ARCH),$(DEB_HOST_ARCH))
+SANE_DESC = $(CURDIR)/tools/sane-desc
+else
+SANE_DESC = $(CURDIR)/debian/sane-desc
+endif
+
+override_dh_auto_configure:
+	autoconf
+ifneq ($(DEB_BUILD_ARCH),$(DEB_HOST_ARCH))
+	dpkg-architecture -f "-a$(DEB_BUILD_ARCH)" -c dh_auto_configure
+	$(MAKE) -C $(CURDIR)/lib liblib.la
+	$(MAKE) -C $(CURDIR)/sanei libsanei.la
+	$(MAKE) -C $(CURDIR)/tools sane-desc
+	mv $(CURDIR)/tools/sane-desc $(CURDIR)/debian/sane-desc
+	$(RM) include/byteorder.h include/_stdint.h
+	dh_auto_clean
+endif
+	dh_auto_configure -- \
+		--prefix=/usr \
+		--libdir=\$${prefix}/lib/$(DEB_HOST_MULTIARCH) \
+		--sysconfdir=/etc \
+		--localstatedir=/var \
+		--datadir=\$${prefix}/share \
+		--mandir=\$${prefix}/share/man \
+		--docdir=\$${prefix}/share/doc/libsane \
+		--enable-static \
+		--enable-pthread \
+		--with-gphoto2 \
+		--with-avahi \
+		--enable-pnm-backend \
+		--with-usb \
+		--without-v4l \
+		--disable-locking \
+		$(INS_CONF)
+
+override_dh_autoreconf:
+	dh_autoreconf -Xlibtool.m4
+
+override_dh_auto_build-indep:
+	# generate POT file for translators
+	$(MAKE)
+	(cd po && make sane-backends.pot)
+
+override_dh_auto_clean:
+	# Autoconf-generated files
+	$(RM) include/byteorder.h include/_stdint.h
+	# Add here commands to clean up after the build process.
+	[ ! -f Makefile ] || $(MAKE) distclean
+	$(RM) debian/libsane1.udev
+	dh_auto_clean
+	$(RM) $(SANE_DESC)
+
+override_dh_auto_install-arch:
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/tmp
+	# remove /usr/lib/sane/libsane.so.1 (libtool side-effect ?)
+	$(RM) debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/sane/libsane.so.1
+	# remove libsane-dll, same as regular libsane
+	$(RM) debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/sane/libsane-dll.*
+
+override_dh_auto_install-indep:
+	dh_auto_install
+	# remove /usr/lib/sane/libsane.so.1 (libtool side-effect ?)
+	$(RM) debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/sane/libsane.so.1
+	# remove libsane-dll, same as regular libsane
+	$(RM) debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/sane/libsane-dll.*
+
+override_dh_install-arch:
+	dh_install
+	# Install the pkg-config file
+	mkdir -p debian/libsane-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/
+	cp tools/sane-backends.pc debian/libsane-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/
+	cp debian/sane-utils.logrotate debian/sane-utils/etc/logrotate.d/sane-utils
+
+override_dh_install-indep:
+	dh_install
+
+override_dh_installman-indep:
+	dh_installman
+	# remove man files from package sane-utils
+	$(RM) $(CURDIR)/debian/libsane-common/usr/share/man/man1/gamma4scanimage.1
+	$(RM) $(CURDIR)/debian/libsane-common/usr/share/man/man1/sane-find-scanner.1
+	$(RM) $(CURDIR)/debian/libsane-common/usr/share/man/man1/scanimage.1
+	$(RM) $(CURDIR)/debian/libsane-common/usr/share/man/man1/sane-config.1
+	$(RM) $(CURDIR)/debian/libsane-common/usr/share/man/man5/sane-umax_pp.5
+	$(RM) -r $(CURDIR)/debian/libsane-common/usr/share/man/man8/
+	$(RM) -r $(CURDIR)/debian/libsane-common/usr/share/man/man1/
+        # remove manpages for not build libs
+	$(RM) $(CURDIR)/debian/libsane-common/usr/share/man/man5/sane-v4l.5
+
+override_dh_installman-arch:
+	dh_installman
+	$(RM) $(CURDIR)/debian/sane-utils/usr/share/man/man1/sane-config.1
+
+override_dh_installdocs-arch:
+	dh_installdocs
+	# move files that belong to libsane-dev
+	mv debian/tmp/usr/share/doc/libsane/backend-writing.txt debian/libsane-dev/usr/share/doc/libsane-dev/
+
+override_dh_installdocs-indep:
+	dh_installdocs
+	# Platform-specific documentation
+	$(RM) debian/libsane-common/etc/sane.d/saned.conf
+ifeq (kfreebsd,$(DEB_HOST_ARCH_OS))
+	cp README.freebsd debian/libsane-common/usr/share/doc/libsane-common/
+endif
+ifeq (linux,$(DEB_HOST_ARCH_OS))
+	cp README.linux debian/libsane-common/usr/share/doc/libsane-common/
+endif
+
+override_dh_installudev-arch:
+ifeq (linux,$(DEB_HOST_ARCH_OS))
+	# udev support
+	# Generate the udev rules file
+	$(SANE_DESC) -s $(CURDIR)/doc/descriptions -m udev+hwdb > $(CURDIR)/debian/libsane1.udev
+	$(SANE_DESC) -s $(CURDIR)/doc/descriptions -m hwdb > $(CURDIR)/debian/20-sane.hwdb
+
+	cp $(CURDIR)/debian/20-sane.hwdb $(CURDIR)/debian/libsane1/lib/udev/hwdb.d/
+	dh_installudev
+endif
+
+	# remove rpath from the binaries (wonderful tool !)
+	chrpath -d debian/sane-utils/usr/sbin/saned
+	chrpath -d debian/sane-utils/usr/bin/scanimage
+	chrpath -d debian/sane-utils/usr/bin/sane-find-scanner
+
+override_dh_installinit-arch:
+	dh_installinit -psane-utils --name=saned
+
+override_dh_installsystemd-arch:
+	dh_installsystemd -psane-utils --no-enable --name=saned
+	dh_installsystemd -psane-utils --no-enable --name=saned@
+
+override_dh_makeshlibs-arch:
+	dh_makeshlibs --exclude=/sane/ -- -v$(DEB_VERSION_UPSTREAM) -Pdebian/libsane1 -plibsane1

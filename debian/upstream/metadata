@@ -1,0 +1,6 @@
+Bug-Database: https://gitlab.com/sane-project/backends/-/issues
+Bug-Submit: https://gitlab.com/sane-project/backends/-/issues/new?issue%5Bassignee_id%5D=&issue%5Bmilestone_id%5D=
+Contact: http://sane-project.org/mailing-lists.html
+Name: sane-backends
+Repository: https://gitlab.com/sane-project/backends.git
+Repository-Browse: https://gitlab.com/sane-project/backends/-/tree/master

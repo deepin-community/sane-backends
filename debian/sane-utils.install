@@ -1,0 +1,6 @@
+etc/sane.d/saned.conf
+usr/bin/gamma4scanimage
+usr/bin/sane-find-scanner
+usr/bin/scanimage
+usr/sbin/saned
+usr/bin/umax_pp

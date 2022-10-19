@@ -1,0 +1,55 @@
+Description: gt68xx: fix use-after-free and two mem leaks
+Author: <name and email of author, optional>
+Origin: https://gitlab.com/sane-project/backends/-/commit/63942f7a7473496d1160f02f5c1da3620525690d
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=980311
+Forwarded: not-needed
+Last-Update: 2021-06-24 
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: trunk/backend/gt68xx.c
+===================================================================
+--- trunk.orig/backend/gt68xx.c
++++ trunk/backend/gt68xx.c
+@@ -1174,8 +1174,11 @@ static SANE_Status probe_gt68xx_devices(
+                        new_dev[i]->model->firmware_name);
+                 }
+               if (i == 0)
+-                DBG (5, "sane_init: firmware %s can't be loaded, set device "
+-                     "first\n", word);
++                {
++                  DBG (5, "sane_init: firmware %s can't be loaded, set device "
++                       "first\n", word);
++                  free (word);
++                }
+             }
+           else
+             {
+@@ -1198,8 +1201,11 @@ static SANE_Status probe_gt68xx_devices(
+                        new_dev[i]->model->name, new_dev[i]->model->vendor);
+                 }
+               if (i == 0)
+-                DBG (5, "sane_init: can't set vendor name %s, set device "
+-                     "first\n", word);
++                {
++                  DBG (5, "sane_init: can't set vendor name %s, set device "
++                       "first\n", word);
++                  free (word);
++                }
+             }
+           else
+             {
+@@ -1221,9 +1227,11 @@ static SANE_Status probe_gt68xx_devices(
+                        new_dev[i]->model->name, new_dev[i]->model->model);
+                 }
+               if (i == 0)
+-                DBG (5, "sane_init: can't set model name %s, set device "
+-                     "first\n", word);
+-              free (word);
++                {
++                  DBG (5, "sane_init: can't set model name %s, set device "
++                       "first\n", word);
++                  free (word);
++                }
+             }
+           else
+             {
