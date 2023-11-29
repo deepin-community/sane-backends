@@ -147,7 +147,7 @@ sane_init (SANE_Int *vc, SANE_Auth_Callback cb)
 #endif
 
 	if(vc)
-		*vc = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, 0);
+		*vc = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, 0);
 
 	DBG(2,"sane_init: >> ieee1284_find_ports\n");
 	/* Find lp ports */
@@ -1787,7 +1787,9 @@ static int init_cal(char *file)
  ************************************************************************/
 static SANE_Status fix_weights_file(CANONP_Scanner *cs)
 {
-	char *tmp, *myhome, buf[PATH_MAX];
+	static const char default_weights_file_prefix[] =
+			"~/.sane/canon_pp-calibration-";
+	char *tmp, *myhome;
 	int i;
 	struct stat *f_stat;
 
@@ -1804,31 +1806,32 @@ static SANE_Status fix_weights_file(CANONP_Scanner *cs)
 
 	if (cs->weights_file == NULL)
 	{
-		/* Will be of form canon_pp-calibration-parport0 or -0x378 */
-		sprintf(buf, "~/.sane/canon_pp-calibration-%s",
+		/* Form is ~/.sane/canon_pp-calibration-parport0 or -0x378 */
+		i = strlen(default_weights_file_prefix) +
+				strlen(cs->params.port->name);
+		if ((cs->weights_file = malloc(i + 1)) == NULL)
+			return SANE_STATUS_NO_MEM;
+		sprintf(cs->weights_file, "%s%s", default_weights_file_prefix,
 				cs->params.port->name);
-		cs->weights_file = strdup(buf);
 	}
 
 	/* Get the user's home dir if they used ~ */
 	if (cs->weights_file[0] == '~')
 	{
-		if ((tmp = malloc(PATH_MAX)) == NULL)
-			return SANE_STATUS_NO_MEM;
 		if ((myhome = getenv("HOME")) == NULL)
 		{
 			DBG(0,"fix_weights_file: FATAL: ~ used, but $HOME not"
 					" set!\n");
-			free(tmp);
-			tmp = NULL;
 			return SANE_STATUS_INVAL;
 		}
-		strncpy(tmp, myhome, PATH_MAX);
-		strncpy(tmp+strlen(tmp), (cs->weights_file)+1,
-				PATH_MAX-strlen(tmp));
+		i = strlen(myhome) + strlen(&cs->weights_file[1]);
+		if ((tmp = malloc(i + 1)) == NULL)
+			return SANE_STATUS_NO_MEM;
+		sprintf(tmp, "%s%s", myhome, &cs->weights_file[1]);
 
 		free(cs->weights_file);
 		cs->weights_file = tmp;
+		tmp = NULL;
 	}
 
 	if ((f_stat = malloc(sizeof(*f_stat))) == NULL)

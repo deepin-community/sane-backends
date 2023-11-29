@@ -291,14 +291,14 @@ e2_dev_post_init(struct Epson_Device *dev)
 	dev->need_reset_on_source_change = SANE_FALSE;
 
 	if (e2_dev_model(dev, "ES-9000H") || e2_dev_model(dev, "GT-30000")) {
-		dev->cmd->set_focus_position = 0;
+		dev->focusSupport = SANE_FALSE;
 		dev->cmd->feed = 0x19;
 	}
 
 	if (e2_dev_model(dev, "GT-8200") || e2_dev_model(dev, "Perfection1650")
 	    || e2_dev_model(dev, "Perfection1640") || e2_dev_model(dev, "GT-8700")) {
+		dev->focusSupport = SANE_FALSE;
 		dev->cmd->feed = 0;
-		dev->cmd->set_focus_position = 0;
 		dev->need_reset_on_source_change = SANE_TRUE;
 	}
 
@@ -588,7 +588,7 @@ e2_discover_capabilities(Epson_Scanner *s)
 	/* ESC F, request status */
 	status = esci_request_status(s, &scanner_status);
 	if (status != SANE_STATUS_GOOD)
-		return status;;
+		return status;
 
 	/* set capabilities */
 	if (scanner_status & STATUS_OPTION)
@@ -817,20 +817,17 @@ e2_discover_capabilities(Epson_Scanner *s)
 	DBG(1, "maximum supported color depth: %d\n", dev->maxDepth);
 
 	/*
-	 * Check for "request focus position" command. If this command is
-	 * supported, then the scanner does also support the "set focus
-	 * position" command.
-	 * XXX ???
+	 * We assume that setting focus is supported when we can get the focus.
+	 * This assumption may be overridden in e2_dev_post_init()
 	 */
-
 	if (esci_request_focus_position(s, &s->currentFocusPosition) ==
 	    SANE_STATUS_GOOD) {
-		DBG(1, "setting focus is supported, current focus: %u\n", s->currentFocusPosition);
+		DBG(1, "getting focus is supported, current focus: %u\n", s->currentFocusPosition);
 		dev->focusSupport = SANE_TRUE;
 		s->opt[OPT_FOCUS_POS].cap &= ~SANE_CAP_INACTIVE;
 		s->val[OPT_FOCUS_POS].w = s->currentFocusPosition;
 	} else {
-		DBG(1, "setting focus is not supported\n");
+		DBG(1, "getting focus is not supported\n");
 		dev->focusSupport = SANE_FALSE;
 		s->opt[OPT_FOCUS_POS].cap |= SANE_CAP_INACTIVE;
 		s->val[OPT_FOCUS_POS].w = FOCUS_ON_GLASS;	/* just in case */
@@ -1596,7 +1593,7 @@ e2_check_adf(Epson_Scanner * s)
 
 		status = esci_request_extended_status(s, &buf, NULL);
 		if (status != SANE_STATUS_GOOD)
-			return status;;
+			return status;
 
 		t = buf[1];
 
@@ -1649,9 +1646,21 @@ e2_start_ext_scan(Epson_Scanner * s)
 	if (buf[0] != STX)
 		return SANE_STATUS_INVAL;
 
-	if (buf[1] & 0x80) {
+	if (buf[1] & STATUS_FER) {
 		DBG(1, "%s: fatal error\n", __func__);
 		return SANE_STATUS_IO_ERROR;
+	}
+
+	/*
+	 * The 12000XL signals busy only with FS+G, all other status queries
+	 * say non-busy. Probably because you can in deed communicate with the
+	 * device, just scanning is not yet possible. I tried polling with FS+G
+	 * every 5 seconds, but that made scary noises. So, bail out and let
+	 * the user retry manually.
+	 */
+	if (buf[1] & STATUS_NOT_READY) {
+		DBG(1, "%s: device not ready\n", __func__);
+		return SANE_STATUS_DEVICE_BUSY;
 	}
 
 	s->ext_block_len = le32atoh(&buf[2]);

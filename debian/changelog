@@ -1,9 +1,170 @@
+sane-backends (1.2.1-5) unstable; urgency=medium
+
+  * debian/rules:
+    - Fix Fails to build source after successful build (Closes: #1046783).
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Mon, 14 Aug 2023 17:10:14 +0200
+
+sane-backends (1.2.1-4) unstable; urgency=medium
+
+  * Fix FTBFS on hurd-i386 (Closes: #1040123):
+    - debian/rules: Remove --enable-parport-directio.
+      Thanks to Pino Toscano <pino@debian.org>.
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Sun, 09 Jul 2023 19:16:00 +0200
+
+sane-backends (1.2.1-3) unstable; urgency=medium
+
+  * debian/control:
+    - Drop transitional package libsane (Closes: #1038302).
+      + Thanks to Holger Levsen <holger@layer-acht.org>.
+    - Change to new repository URL.
+  * debian/patches/0040-remove_git.patch:
+    - Update .tarball-version to the current version (Closes: #1036870).
+      + Thanks to Jan Binder <jb-debbugs@nlogn.org>.
+  * debian/patches/0175-fix_tests.patch:
+    - Update to the current version.
+  * New debian/po/ro.po (Closes: #1033709).
+    - Thanks to "Remus-Gabriel Chelu" <remusgabriel.chelu@disroot.org>.
+  * debian/copyright:
+    - Correcting the license of debian/po/fr.po to GPL-2+ with sane exception
+      and remove the GFDL-1.1 text (Closes: #1033979).
+      + Thanks to Bastian Germann <bage@debian.org>
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Mon, 19 Jun 2023 08:41:14 +0200
+
+sane-backends (1.2.1-2) unstable; urgency=medium
+
+  * Fix remove wrong remove manpage (Closes: #1035677):
+    - Remove debian/sane-utils.preinst.
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Tue, 16 May 2023 18:49:09 +0200
+
+sane-backends (1.2.1-1) unstable; urgency=medium
+
+  * New upstream release:
+    - Remove not longer needed patches:
+      + 0195-genesys_fix_total_file_size_exceeding.patch
+      + 0035-trim-libraries-in-sane-backends.pc.in.patch
+      + 0045-disable_lock_test_at_build_time.patch
+      + 0185-Change_output_from_sane-find-scanner.patch
+    - Refresh patches:
+      + 0705-kfreebsd.patch
+      + 0060-cross.patch
+      + 0100-source_spelling.patch
+  * debian/control:
+    - Remove obsolete package Depends lsb-base.
+    - Add libpng-dev to Build-Depends.
+  * Declare compliance with Debian Policy 4.6.2.0 (No changes needed).
+  * debian/copyright:
+    - Refresh to the new upstream release.
+    - Add 2023 to myself.
+  * debian/changelog:
+    - Remove trailing whitespace.
+  * Remove obsolete files:
+    - debian/libsane-common.maintscript
+    - debian/NEWS
+    - debian/libsane1.NEWS
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Mon, 13 Feb 2023 19:25:08 +0100
+
+sane-backends (1.1.1-6) unstable; urgency=medium
+
+  * debian/rules:
+    - Remove # before $(INS_CONF).
+  * Fix build error with gcc12 (Closes: #1013034):
+    - New debian/patches/0200-disable-check-equal-stderr.patch.
+      + Thanks to Nathan Pratta Teodosio <nathan.teodosio@canonical.com>.
+  * debian/sane-utils.postrm:
+    - Fix purge error (Closes: #1008822).
+  * debian/sane-utils.postinst:
+    - Fix inetd handling (Closes: #1009354).
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Sun, 02 Oct 2022 09:54:28 +0200
+
+sane-backends (1.1.1-5) unstable; urgency=medium
+
+  * debian/rules:
+    - Change configure parameter --enable-parport-directio to use only on
+      hurd-i386 (Closes: #1008488).
+  * debian/control:
+   - Change Build-Depend from virtual package libltdl3-dev to libltdl-dev.
+  * New debian/patches/0195-genesys_fix_total_file_size_exceeding.patch:
+   - Fix out off memory on high resultions (Closes: #942176)
+     Cherry-picked from upstream.
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Sun, 27 Mar 2022 18:31:28 +0200
+
+sane-backends (1.1.1-4) unstable; urgency=medium
+
+  * debian/sane-utils.preinst: Remove man file only on update.
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Sat, 26 Feb 2022 14:47:49 +0100
+
+sane-backends (1.1.1-3) unstable; urgency=medium
+
+  * Remove test artefact (debian/1.sh).
+  * debian/changelog:
+    - Fix spelling error (Closes: #1006116).
+  * debian/sane-utils.postinst:
+    - Remove not longer requested home directory move.
+  * debian/sane-utils.postrm:
+    - Don't remove group scanner (Closes: #1005737).
+  * debian/control:
+    - Add Recommends: sane-airscan to libsane1 (Closes: 1005817).
+  * Move man page sane-umax_pp.5 back to libsane-common (Closes: #1005736):
+    - debian/rules:
+      - Remove delete manpage from libsane-common.
+    - New debian/sane-utils.preinst to remove man page and symlink.
+    - debian/sane-utils.link:
+      - Remove create link from sane-umax_pp.5
+    - debian/control:
+      - Add new Breaks and Replace.
+  * New debian/patches/0185-Change_output_from_sane-find-scanner.patch:
+    - Improve output for possible USB scanners (Closes: #983332).
+  * debian/libsane1.symbols:
+    - Add !kfreebsd-any to missing symbol.
+  * debian/copyright:
+    - Refresh Upstream Contact and Source.
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Wed, 23 Feb 2022 09:28:33 +0100
+
+sane-backends (1.1.1-2) unstable; urgency=medium
+
+  * debian/sane-utils.postinst:
+    - Fix syntax error (Closes: #1005102).
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Mon, 07 Feb 2022 20:35:48 +0100
+
+sane-backends (1.1.1-1) unstable; urgency=medium
+
+  * New upstream release.
+    - Remove not longer needed patches:
+      + 0180-gt68xx_fix_use-after-free_two_memleaks.patch
+      + 0600-scanimage_manpage.patch
+    - Refresh patches:
+      + 0605-fix_groff-warnings.patch
+      + 0100-source_spelling.patch
+    - Closes: #920216, #998616.
+  * debian/copyright:
+    - Refresh to the new upstream release.
+    - Add 2022 to myself.
+  * Remove *.lintian-overrides.
+  * debian/sane-utils.postinst:
+    - Add home dir for user/group saned (Closes: #995732).
+  * debian/sane-utils.postrm:
+    - Use --remove-home instead --remove-all-files (Closes: #1001960).
+  * Reactivate debian/patches/0125-multiarch_dll_search_path.patch
+    (Closes: #1002704).
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Sun, 06 Feb 2022 10:51:26 +0100
+
 sane-backends (1.0.32-4) unstable; urgency=medium
 
   * Upload into unstable.
   * Declare compliance with Debian Policy 4.6.0 (No changes needed).
 
- -- Jörg Frings-Fürst <debian@jff.email>  Wed, 18 Aug 2021 21:46:15 +0200
+ -- Jörg Frings-Fürst <debian@jff.email>  Fri, 20 Aug 2021 13:44:57 +0200
 
 sane-backends (1.0.32-3) experimental; urgency=medium
 

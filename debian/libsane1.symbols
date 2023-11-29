@@ -1,6 +1,6 @@
 libsane.so.1 libsane1 #MINVER#
 * Build-Depends-Package: libsane-dev
- (arch=!hurd-i386)cmsg@Base 1.0.29
+ (arch=!hurd-i386 !kfreebsd-any)cmsg@Base 1.0.29
  fail_test@Base 1.0.29
  md5_buffer@Base 1.0.27
  md5_finish_ctx@Base 1.0.27

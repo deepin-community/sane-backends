@@ -265,7 +265,7 @@ static const SANE_Device **devlist = 0;
 SANE_Status
 sane_init (SANE_Int * version_code, SANE_Auth_Callback authorize)
 {
-  authorize = authorize;	/* get rid of compiler warning */
+  (void) authorize;		/* get rid of compiler warning */
 
   DBG_INIT ();
   DBG (10, "sane_init\n");
@@ -274,7 +274,7 @@ sane_init (SANE_Int * version_code, SANE_Auth_Callback authorize)
   sanei_thread_init ();
 
   if (version_code)
-    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, 0);
+    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, 0);
 
   sanei_usb_find_devices (0x03f0, 0x2205, attachScanner);
   sanei_usb_find_devices (0x03f0, 0x2005, attachScanner);
@@ -1117,7 +1117,7 @@ init_options (struct hp3500_data *scanner)
 static void
 do_reset (struct hp3500_data *scanner)
 {
-  scanner = scanner;		/* kill warning */
+  (void) scanner;		/* kill warning */
 }
 
 static void
@@ -1530,8 +1530,6 @@ rt_get_available_bytes (void)
 static int
 rt_get_data (int bytes, void *data)
 {
-  int total = 0;
-
   while (bytes)
     {
       int bytesnow = bytes;
@@ -1542,7 +1540,6 @@ rt_get_data (int bytes, void *data)
 	  (RTCMD_READBYTES, 0, bytesnow, 0, 0, bytesnow, data) < 0
 	  || rt_execute_commands () < 0)
 	return -1;
-      total += bytesnow;
       bytes -= bytesnow;
       data = (char *) data + bytesnow;
     }
@@ -2774,7 +2771,7 @@ rts8801_doscan (unsigned width,
   int result = 0;
   unsigned rows_supplied = 0;
 
-  calib_info = calib_info;	/* Kill warning */
+  (void) calib_info;		/* Kill warning */
   if (cancelled_scan)
     return -1;
   rt_start_moving ();
@@ -3784,7 +3781,7 @@ writefunc (struct hp3500_write_info *winfo, int bytes, char *data)
 static void
 sigtermHandler (int signal)
 {
-  signal = signal;		/* get rid of compiler warning */
+  (void) signal;		/* get rid of compiler warning */
   cancelled_scan = 1;
 }
 #endif

@@ -1,4 +1,0 @@
-#
-# doc/gt68xx/gt68xx.CHANGES:442:- Added "afe" option for gt68xx.conf for selecting default afe values.
-#
-libsane-common: typo-in-manual-page usr/share/man/man5/sane-gt68xx.5.gz afe safe

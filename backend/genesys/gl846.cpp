@@ -17,27 +17,6 @@
 
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-   As a special exception, the authors of SANE give permission for
-   additional uses of the libraries contained in this release of SANE.
-
-   The exception is that, if you link a SANE library with other files
-   to produce an executable, this does not by itself cause the
-   resulting executable to be covered by the GNU General Public
-   License.  Your use of that executable is in no way restricted on
-   account of linking the SANE library code into it.
-
-   This exception does not, however, invalidate any other reasons why
-   the executable file might be covered by the GNU General Public
-   License.
-
-   If you submit changes to SANE to the maintainers to be included in
-   a subsequent release, you agree by submitting the changes that
-   those changes may be distributed with this exception intact.
-
-   If you write modifications of your own for SANE, it is your choice
-   whether to permit this exception to apply to your modifications.
-   If you do not wish that, delete this exception notice.
 */
 
 /** @file
@@ -305,7 +284,7 @@ gl846_init_registers (Genesys_Device * dev)
 /**
  * Set register values of Analog Device type frontend
  * */
-static void gl846_set_adi_fe(Genesys_Device* dev, uint8_t set)
+static void gl846_set_adi_fe(Genesys_Device* dev, std::uint8_t set)
 {
     DBG_HELPER(dbg);
   int i;
@@ -335,15 +314,16 @@ static void gl846_set_adi_fe(Genesys_Device* dev, uint8_t set)
 }
 
 // Set values of analog frontend
-void CommandSetGl846::set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor, uint8_t set) const
+void CommandSetGl846::set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor,
+                             std::uint8_t set) const
 {
     DBG_HELPER_ARGS(dbg, "%s", set == AFE_INIT ? "init" :
                                set == AFE_SET ? "set" :
                                set == AFE_POWER_SAVE ? "powersave" : "huh?");
     (void) sensor;
 
-  /* route to specific analog frontend setup */
-    uint8_t frontend_type = dev->reg.find_reg(0x04).value & REG_0x04_FESET;
+    // route to specific analog frontend setup
+    std::uint8_t frontend_type = dev->reg.find_reg(0x04).value & REG_0x04_FESET;
     switch (frontend_type) {
       case 0x02: /* ADI FE */
         gl846_set_adi_fe(dev, set);
@@ -374,25 +354,13 @@ static void gl846_init_motor_regs_scan(Genesys_Device* dev,
 
     unsigned step_multiplier = gl846_get_step_multiplier(reg);
 
-    bool use_fast_fed = false;
-    if (dev->settings.yres == 4444 && feed_steps > 100 && !has_flag(flags, ScanFlag::FEEDING)) {
-        use_fast_fed = true;
-    }
-    if (has_flag(dev->model->flags, ModelFlag::DISABLE_FAST_FEEDING)) {
-        use_fast_fed = false;
-    }
-
     reg->set24(REG_LINCNT, scan_lines);
 
     reg->set8(REG_0x02, 0);
     sanei_genesys_set_motor_power(*reg, true);
 
     std::uint8_t reg02 = reg->get8(REG_0x02);
-    if (use_fast_fed) {
-        reg02 |= REG_0x02_FASTFED;
-    } else {
-        reg02 &= ~REG_0x02_FASTFED;
-    }
+    reg02 &= ~REG_0x02_FASTFED;
 
     if (has_flag(flags, ScanFlag::AUTO_GO_HOME)) {
         reg02 |= REG_0x02_AGOHOME | REG_0x02_NOTHOME;
@@ -446,18 +414,11 @@ static void gl846_init_motor_regs_scan(Genesys_Device* dev,
 
     unsigned feedl = feed_steps;
     unsigned dist = 0;
-    if (use_fast_fed) {
-        feedl <<= static_cast<unsigned>(fast_profile->step_type);
-        dist = (scan_table.table.size() + 2 * fast_table.table.size());
-        // TODO read and decode REG_0xAB
-        dist += (reg->get8(0x5e) & 31);
-        dist += reg->get8(REG_FEDCNT);
-    } else {
-        feedl <<= static_cast<unsigned>(motor_profile.step_type);
-        dist = scan_table.table.size();
-        if (has_flag(flags, ScanFlag::FEEDING)) {
-            dist *= 2;
-        }
+
+    feedl <<= static_cast<unsigned>(motor_profile.step_type);
+    dist = scan_table.table.size();
+    if (has_flag(flags, ScanFlag::FEEDING)) {
+        dist *= 2;
     }
 
     // check for overflow
@@ -513,7 +474,7 @@ static void gl846_init_motor_regs_scan(Genesys_Device* dev,
     reg->set8(REG_BWDSTEP, min_restep);
 
     std::uint32_t z1, z2;
-    sanei_genesys_calculate_zmod(use_fast_fed,
+    sanei_genesys_calculate_zmod(false,
                                  scan_exposure_time * ccdlmt * tgtime,
                                  scan_table.table,
                                  scan_table.table.size(),
@@ -698,7 +659,7 @@ void CommandSetGl846::init_regs_for_scan_session(Genesys_Device* dev, const Gene
     dev->session = session;
 
     dev->total_bytes_read = 0;
-    dev->total_bytes_to_read = session.output_line_bytes_requested * session.params.lines;
+    dev->total_bytes_to_read = (size_t)session.output_line_bytes_requested * (size_t)session.params.lines;
 
     DBG(DBG_info, "%s: total bytes to send = %zu\n", __func__, dev->total_bytes_to_read);
 }
@@ -759,6 +720,8 @@ ScanSession CommandSetGl846::calculate_scan_session(const Genesys_Device* dev,
     session.params.scan_method = settings.scan_method;
     session.params.scan_mode = settings.scan_mode;
     session.params.color_filter = settings.color_filter;
+    session.params.contrast_adjustment = settings.contrast;
+    session.params.brightness_adjustment = settings.brightness;
     // backtracking isn't handled well, so don't enable it
     session.params.flags = flags;
 
@@ -786,7 +749,6 @@ void CommandSetGl846::begin_scan(Genesys_Device* dev, const Genesys_Sensor& sens
 {
     DBG_HELPER(dbg);
     (void) sensor;
-  uint8_t val;
 
     if (reg->state.is_xpa_on && reg->state.is_lamp_on) {
         dev->cmd_set->set_xpa_lamp_power(*dev, true);
@@ -794,7 +756,7 @@ void CommandSetGl846::begin_scan(Genesys_Device* dev, const Genesys_Sensor& sens
 
     scanner_clear_scan_and_feed_counts(*dev);
 
-    val = dev->interface->read_register(REG_0x01);
+    std::uint8_t val = dev->interface->read_register(REG_0x01);
     val |= REG_0x01_SCAN;
     dev->interface->write_register(REG_0x01, val);
     reg->set8(REG_0x01, val);
@@ -882,6 +844,8 @@ void CommandSetGl846::init_regs_for_shading(Genesys_Device* dev, const Genesys_S
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = dev->settings.color_filter;
+    session.params.contrast_adjustment = dev->settings.contrast;
+    session.params.brightness_adjustment = dev->settings.brightness;
     session.params.flags = flags;
     compute_session(dev, session, calib_sensor);
 
@@ -898,11 +862,10 @@ void CommandSetGl846::init_regs_for_shading(Genesys_Device* dev, const Genesys_S
  * for all the channels.
  */
 void CommandSetGl846::send_shading_data(Genesys_Device* dev, const Genesys_Sensor& sensor,
-                                        uint8_t* data, int size) const
+                                        std::uint8_t* data, int size) const
 {
     DBG_HELPER_ARGS(dbg, "writing %d bytes of shading data", size);
     std::uint32_t addr, i;
-  uint8_t val,*ptr,*src;
 
     unsigned length = static_cast<unsigned>(size / 3);
 
@@ -920,7 +883,7 @@ void CommandSetGl846::send_shading_data(Genesys_Device* dev, const Genesys_Senso
     dev->interface->record_key_value("shading_length", std::to_string(length));
     dev->interface->record_key_value("shading_factor", std::to_string(sensor.shading_factor));
 
-  std::vector<uint8_t> buffer(pixels, 0);
+    std::vector<std::uint8_t> buffer(pixels, 0);
 
   DBG(DBG_io2, "%s: using chunks of %d (0x%04x) bytes\n", __func__, pixels, pixels);
 
@@ -932,12 +895,12 @@ void CommandSetGl846::send_shading_data(Genesys_Device* dev, const Genesys_Senso
     {
       /* build up actual shading data by copying the part from the full width one
        * to the one corresponding to SHDAREA */
-      ptr = buffer.data();
+        std::uint8_t* ptr = buffer.data();
 
       /* iterate on both sensor segment */
         for (unsigned x = 0; x < pixels; x += 4 * sensor.shading_factor) {
           // coefficient source
-          src = (data + offset + i * length) + x;
+            std::uint8_t* src = (data + offset + i * length) + x;
 
           /* coefficient copy */
           ptr[0]=src[0];
@@ -949,7 +912,7 @@ void CommandSetGl846::send_shading_data(Genesys_Device* dev, const Genesys_Senso
           ptr+=4;
         }
 
-        val = dev->interface->read_register(0xd0+i);
+        std::uint8_t val = dev->interface->read_register(0xd0+i);
         addr = val * 8192 + 0x10000000;
         dev->interface->write_ahb(addr, pixels, buffer.data());
     }
@@ -997,7 +960,7 @@ static void gl846_init_memory_layout(Genesys_Device* dev)
 void CommandSetGl846::asic_boot(Genesys_Device* dev, bool cold) const
 {
     DBG_HELPER(dbg);
-  uint8_t val;
+    std::uint8_t val;
 
     // reset ASIC if cold boot
     if (cold) {
@@ -1072,8 +1035,7 @@ void CommandSetGl846::update_hardware_sensors(Genesys_Scanner* s) const
   /* do what is needed to get a new set of events, but try to not lose
      any of them.
    */
-  uint8_t val;
-  uint8_t scan, file, email, copy;
+    std::uint8_t scan, file, email, copy;
   switch(s->dev->model->gpio_id)
     {
       default:
@@ -1082,7 +1044,7 @@ void CommandSetGl846::update_hardware_sensors(Genesys_Scanner* s) const
         email=0x04;
         copy=0x08;
     }
-    val = s->dev->interface->read_register(REG_0x6D);
+    std::uint8_t val = s->dev->interface->read_register(REG_0x6D);
 
     s->buttons[BUTTON_SCAN_SW].write((val & scan) == 0);
     s->buttons[BUTTON_FILE_SW].write((val & file) == 0);

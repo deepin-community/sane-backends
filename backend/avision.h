@@ -502,7 +502,6 @@ typedef struct Avision_Scanner
 
   /* Internal data for duplex scans */
   char duplex_rear_fname [PATH_MAX];
-  char duplex_offtmp_fname [PATH_MAX];
   SANE_Bool duplex_rear_valid;
 
   color_mode c_mode;
@@ -795,17 +794,17 @@ typedef struct acceleration_info
 
 /* set/get SCSI highended (big-endian) variables. Declare them as an array
  * of chars endianness-safe, int-size safe ... */
-#define set_double(var,val) var[0] = ((val) >> 8) & 0xff;  \
-                            var[1] = ((val)     ) & 0xff
+#define set_double(var,val) var[0] = (uint8_t) (((val) >> 8) & 0xff);  \
+                            var[1] = (uint8_t) (((val)     ) & 0xff)
 
-#define set_triple(var,val) var[0] = ((val) >> 16) & 0xff; \
-                            var[1] = ((val) >> 8 ) & 0xff; \
-                            var[2] = ((val)      ) & 0xff
+#define set_triple(var,val) var[0] = (uint8_t) (((val) >> 16) & 0xff); \
+                            var[1] = (uint8_t) (((val) >> 8 ) & 0xff); \
+                            var[2] = (uint8_t) (((val)      ) & 0xff)
 
-#define set_quad(var,val)   var[0] = ((val) >> 24) & 0xff; \
-                            var[1] = ((val) >> 16) & 0xff; \
-                            var[2] = ((val) >> 8 ) & 0xff; \
-                            var[3] = ((val)      ) & 0xff
+#define set_quad(var,val)   var[0] = (uint8_t) (((val) >> 24) & 0xff); \
+                            var[1] = (uint8_t) (((val) >> 16) & 0xff); \
+                            var[2] = (uint8_t) (((val) >> 8 ) & 0xff); \
+                            var[3] = (uint8_t) (((val)      ) & 0xff)
 
 #define get_double(var) ((*var << 8) + *(var + 1))
 
@@ -817,10 +816,10 @@ typedef struct acceleration_info
                          (*(var + 2) << 8) + *(var + 3))
 
 /* set/get Avision lowended (little-endian) shading data */
-#define set_double_le(var,val) var[0] = ((val)     ) & 0xff;  \
-                               var[1] = ((val) >> 8) & 0xff
+#define set_double_le(var,val) var[0] = (uint8_t) (((val)     ) & 0xff);  \
+                               var[1] = (uint8_t) (((val) >> 8) & 0xff)
 
-#define get_double_le(var) ((*(var + 1) << 8) + *var)
+#define get_double_le(var) ((uint16_t) ((*(var + 1) << 8) + *(var)))
 
 #define BIT(n, p) ((n & (1 << p)) ? 1 : 0)
 
@@ -850,5 +849,30 @@ SANE_Avision_Status;
 extern SANE_Status ENTRY(media_check) (SANE_Handle handle);
 
 #endif
+
+typedef enum
+{
+  AVISION_DATATYPECODE_READ_IMAGE_DATA = 0x00,
+  AVISION_DATATYPECODE_GET_CALIBRATION_FORMAT = 0x60,
+  AVISION_DATATYPECODE_DETECT_ACCESSORIES = 0x64,
+  AVISION_DATATYPECODE_READ_NVRAM_DATA = 0x69,
+  AVISION_DATATYPECODE_FLASH_RAM_INFO = 0x6a,
+  AVISION_DATATYPECODE_ACCELERATION_TABLE = 0x6c,
+  AVISION_DATATYPECODE_DOWNLOAD_GAMMA_TABLE = 0x81,
+  AVISION_DATATYPECODE_3X3_COLOR_MATRIX = 0x83,
+  AVISION_DATATYPECODE_SEND_NVRAM_DATA = 0x85,
+  AVISION_DATATYPECODE_FLASH_DATA = 0x86,
+  AVISION_DATATYPECODE_FILM_HOLDER_SENSE = 0x87,
+  AVISION_DATATYPECODE_FIRMWARE_STATUS = 0x90,
+  AVISION_DATATYPECODE_ATTACH_TRUNCATE_TAIL = 0x95,
+  AVISION_DATATYPECODE_ATTACH_TRUNCATE_HEAD = 0x96,
+  AVISION_DATATYPECODE_GET_BACKGROUND_RASTER = 0x9b,
+  AVISION_DATATYPECODE_LIGHT_STATUS = 0xa0,
+  AVISION_DATATYPECODE_BUTTON_STATUS = 0xa1,
+  AVISION_DATATYPECODE_POWER_SAVING_TIMER = 0xa2,
+  AVISION_DATATYPECODE_READ_DUPLEX_INFO = 0xb1,
+  AVISION_DATATYPECODE_UNKNOWN = 0xd0,
+  AVISION_DATATYPECODE_READ_GENERAL_ABILITY_PARAM = 0xd2,
+} Avision_Datatypecode;
 
 #endif /* avision_h */

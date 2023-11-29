@@ -15,10 +15,6 @@
  * published by the Free Software Foundation, version 2.
  */
 
-#define EPSON2_VERSION	1
-#define EPSON2_REVISION	0
-#define EPSON2_BUILD	124
-
 /* debugging levels:
  *
  *     127	e2_recv buffer
@@ -900,16 +896,14 @@ SANE_Status
 sane_init(SANE_Int *version_code, SANE_Auth_Callback __sane_unused__ authorize)
 {
 	DBG_INIT();
-	DBG(2, "%s: " PACKAGE " " VERSION "\n", __func__);
+	DBG(1, "%s: version " VERSION "\n", __func__);
 
-	DBG(1, "epson2 backend, version %i.%i.%i\n",
-		EPSON2_VERSION, EPSON2_REVISION, EPSON2_BUILD);
-
-	if (version_code != NULL)
-		*version_code = SANE_VERSION_CODE(SANE_CURRENT_MAJOR, V_MINOR,
-					  EPSON2_BUILD);
+	/* Keep '124' as our build version. The arg is obsolete by now */
+	if (version_code)
+		*version_code = SANE_VERSION_CODE(SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, 124);
 
 	sanei_usb_init();
+	sanei_usb_set_timeout(60 * 1000);
 
 	return SANE_STATUS_GOOD;
 }
@@ -2303,21 +2297,6 @@ sane_start(SANE_Handle handle)
 	return status;
 }
 
-static inline int
-get_color(int status)
-{
-	switch ((status >> 2) & 0x03) {
-	case 1:
-		return 1;
-	case 2:
-		return 0;
-	case 3:
-		return 2;
-	default:
-		return 0;	/* required to make the compiler happy */
-	}
-}
-
 /* this moves data from our buffers to SANE */
 
 SANE_Status
@@ -2354,7 +2333,7 @@ sane_read(SANE_Handle handle, SANE_Byte *data, SANE_Int max_length,
 	/* XXX if FS G and STATUS_IOERR, use e2_check_extended_status */
 
 	DBG(18, "moving data %p %p, %d (%d lines)\n",
-		s->ptr, s->end,
+		(void *) s->ptr, (void *) s->end,
 		max_length, max_length / s->params.bytes_per_line);
 
 	e2_copy_image_data(s, data, max_length, length);

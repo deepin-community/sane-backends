@@ -16,27 +16,6 @@
 
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-   As a special exception, the authors of SANE give permission for
-   additional uses of the libraries contained in this release of SANE.
-
-   The exception is that, if you link a SANE library with other files
-   to produce an executable, this does not by itself cause the
-   resulting executable to be covered by the GNU General Public
-   License.  Your use of that executable is in no way restricted on
-   account of linking the SANE library code into it.
-
-   This exception does not, however, invalidate any other reasons why
-   the executable file might be covered by the GNU General Public
-   License.
-
-   If you submit changes to SANE to the maintainers to be included in
-   a subsequent release, you agree by submitting the changes that
-   those changes may be distributed with this exception intact.
-
-   If you write modifications of your own for SANE, it is your choice
-   whether to permit this exception to apply to your modifications.
-   If you do not wish that, delete this exception notice.
 */
 
 #define DEBUG_DECLARE_ONLY
@@ -471,8 +450,8 @@ void genesys_init_sensor_tables()
     sensor.register_dpihw = 1200;
     sensor.black_pixels = 87;
     sensor.dummy_pixel = 87;
-    sensor.fau_gain_white_ref = 0;
-    sensor.gain_white_ref = 0;
+    sensor.fau_gain_white_ref = 100;
+    sensor.gain_white_ref = 100;
     sensor.exposure = { 0x0400, 0x0400, 0x0400 };
     sensor.custom_regs = {
         { 0x16, 0x00 }, { 0x17, 0x02 }, { 0x18, 0x00 }, { 0x19, 0x50 },
@@ -519,8 +498,8 @@ void genesys_init_sensor_tables()
     sensor.register_dpihw = 1200;
     sensor.black_pixels = 87;
     sensor.dummy_pixel = 87;
-    sensor.fau_gain_white_ref = 0;
-    sensor.gain_white_ref = 0;
+    sensor.fau_gain_white_ref = 100;
+    sensor.gain_white_ref = 100;
     sensor.exposure = { 0x0400, 0x0400, 0x0400 };
     sensor.custom_regs = {
         { 0x16, 0x00 }, { 0x17, 0x01 }, { 0x18, 0x00 }, { 0x19, 0x50 },
@@ -1058,30 +1037,6 @@ void genesys_init_sensor_tables()
 
         CustomSensorSettings custom_settings[] = {
             // Note: Windows driver uses 1424 lperiod and enables dummy line (0x17)
-            {   { 75 }, 600, 2848, { 304, 203, 180 }, Ratio{1, 8}, 8, 40, 5136,
-                std::vector<unsigned>{}, {
-                    { 0x16, 0x10 }, { 0x17, 0x0a }, { 0x18, 0x00 }, { 0x19, 0xff },
-                    { 0x1a, 0x34 }, { 0x1b, 0x00 }, { 0x1c, 0x02 }, { 0x1d, 0x04 },
-                    { 0x52, 0x03 }, { 0x53, 0x07 }, { 0x54, 0x00 }, { 0x55, 0x00 },
-                    { 0x56, 0x00 }, { 0x57, 0x00 }, { 0x58, 0x2a }, { 0x59, 0xe1 }, { 0x5a, 0x55 },
-                    { 0x74, 0x00 }, { 0x75, 0x00 }, { 0x76, 0x3c },
-                    { 0x77, 0x00 }, { 0x78, 0x00 }, { 0x79, 0x9f },
-                    { 0x7a, 0x00 }, { 0x7b, 0x00 }, { 0x7c, 0x55 },
-                }
-            },
-            // Note: Windows driver uses 1424 lperiod and enables dummy line (0x17)
-            {   { 100 }, 600, 2848, { 304, 203, 180 }, Ratio{1, 8}, 6, 53, 5136,
-                std::vector<unsigned>{}, {
-                    { 0x16, 0x10 }, { 0x17, 0x0a }, { 0x18, 0x00 }, { 0x19, 0xff },
-                    { 0x1a, 0x34 }, { 0x1b, 0x00 }, { 0x1c, 0x02 }, { 0x1d, 0x04 },
-                    { 0x52, 0x03 }, { 0x53, 0x07 }, { 0x54, 0x00 }, { 0x55, 0x00 },
-                    { 0x56, 0x00 }, { 0x57, 0x00 }, { 0x58, 0x2a }, { 0x59, 0xe1 }, { 0x5a, 0x55 },
-                    { 0x74, 0x00 }, { 0x75, 0x00 }, { 0x76, 0x3c },
-                    { 0x77, 0x00 }, { 0x78, 0x00 }, { 0x79, 0x9f },
-                    { 0x7a, 0x00 }, { 0x7b, 0x00 }, { 0x7c, 0x55 },
-                }
-            },
-            // Note: Windows driver uses 1424 lperiod and enables dummy line (0x17)
             {   { 150 }, 600, 2848, { 304, 203, 180 }, Ratio{1, 8}, 4, 80, 5136,
                 std::vector<unsigned>{}, {
                     { 0x16, 0x10 }, { 0x17, 0x0a }, { 0x18, 0x00 }, { 0x19, 0xff },
@@ -1361,28 +1316,6 @@ void genesys_init_sensor_tables()
         };
 
         CustomSensorSettings custom_settings[] = {
-            {   { 75 }, 600, 2304, { 423, 294, 242 }, Ratio{1, 4}, 8, 40, 5136,
-                std::vector<unsigned>{}, {
-                    { 0x16, 0x10 }, { 0x17, 0x0a }, { 0x18, 0x00 }, { 0x19, 0xff },
-                    { 0x1a, 0x34 }, { 0x1b, 0x00 }, { 0x1c, 0x02 }, { 0x1d, 0x04 },
-                    { 0x52, 0x03 }, { 0x53, 0x07 }, { 0x54, 0x00 }, { 0x55, 0x00 },
-                    { 0x56, 0x00 }, { 0x57, 0x00 }, { 0x58, 0x2a }, { 0x59, 0xe1 }, { 0x5a, 0x55 },
-                    { 0x74, 0x00 }, { 0x75, 0x00 }, { 0x76, 0x3c },
-                    { 0x77, 0x00 }, { 0x78, 0x00 }, { 0x79, 0x9f },
-                    { 0x7a, 0x00 }, { 0x7b, 0x00 }, { 0x7c, 0x55 },
-                }
-            },
-            {   { 100 }, 600, 2304, { 423, 294, 242 }, Ratio{1, 4}, 6, 53, 5136,
-                std::vector<unsigned>{}, {
-                    { 0x16, 0x10 }, { 0x17, 0x0a }, { 0x18, 0x00 }, { 0x19, 0xff },
-                    { 0x1a, 0x34 }, { 0x1b, 0x00 }, { 0x1c, 0x02 }, { 0x1d, 0x04 },
-                    { 0x52, 0x03 }, { 0x53, 0x07 }, { 0x54, 0x00 }, { 0x55, 0x00 },
-                    { 0x56, 0x00 }, { 0x57, 0x00 }, { 0x58, 0x2a }, { 0x59, 0xe1 }, { 0x5a, 0x55 },
-                    { 0x74, 0x00 }, { 0x75, 0x00 }, { 0x76, 0x3c },
-                    { 0x77, 0x00 }, { 0x78, 0x00 }, { 0x79, 0x9f },
-                    { 0x7a, 0x00 }, { 0x7b, 0x00 }, { 0x7c, 0x55 },
-                }
-            },
             {   { 150 }, 600, 2304, { 423, 294, 242 }, Ratio{1, 4}, 4, 80, 5136,
                 std::vector<unsigned>{}, {
                     { 0x16, 0x10 }, { 0x17, 0x0a }, { 0x18, 0x00 }, { 0x19, 0xff },
@@ -2635,6 +2568,13 @@ void genesys_init_sensor_tables()
             sensor.shading_factor = setting.shading_factor;
             sensor.segment_order = setting.segment_order;
             sensor.custom_regs = setting.custom_regs;
+
+            sensor.channels = { 1 };
+            sensor.custom_regs.set_value(0x0c, 0x10);
+            s_sensors->push_back(sensor);
+
+            sensor.channels = { 3 };
+            sensor.custom_regs.set_value(0x0c, 0x12);
             s_sensors->push_back(sensor);
         }
     }
@@ -2805,6 +2745,13 @@ void genesys_init_sensor_tables()
             sensor.shading_factor = setting.shading_factor;
             sensor.segment_order = setting.segment_order;
             sensor.custom_regs = setting.custom_regs;
+
+            sensor.channels = { 1 };
+            sensor.custom_regs.set_value(0x0c, 0x10);
+            s_sensors->push_back(sensor);
+
+            sensor.channels = { 3 };
+            sensor.custom_regs.set_value(0x0c, 0x12);
             s_sensors->push_back(sensor);
         }
     }
@@ -3000,6 +2947,13 @@ void genesys_init_sensor_tables()
             sensor.shading_factor = setting.shading_factor;
             sensor.segment_order = setting.segment_order;
             sensor.custom_regs = setting.custom_regs;
+
+            sensor.channels = { 1 };
+            sensor.custom_regs.set_value(0x0c, 0x10);
+            s_sensors->push_back(sensor);
+
+            sensor.channels = { 3 };
+            sensor.custom_regs.set_value(0x0c, 0x12);
             s_sensors->push_back(sensor);
         }
     }
@@ -3196,6 +3150,13 @@ void genesys_init_sensor_tables()
             sensor.shading_factor = setting.shading_factor;
             sensor.segment_order = setting.segment_order;
             sensor.custom_regs = setting.custom_regs;
+
+            sensor.channels = { 1 };
+            sensor.custom_regs.set_value(0x0c, 0x10);
+            s_sensors->push_back(sensor);
+
+            sensor.channels = { 3 };
+            sensor.custom_regs.set_value(0x0c, 0x12);
             s_sensors->push_back(sensor);
         }
     }

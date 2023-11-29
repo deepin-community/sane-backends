@@ -4,7 +4,7 @@ Index: trunk/backend/umax_pp_low.c
 ===================================================================
 --- trunk.orig/backend/umax_pp_low.c
 +++ trunk/backend/umax_pp_low.c
-@@ -72,8 +72,10 @@
+@@ -70,8 +70,10 @@
  #endif
  
  #ifdef HAVE_MACHINE_CPUFUNC_H

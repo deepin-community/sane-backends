@@ -191,23 +191,13 @@ static const SANE_Range odd_bw_x_range = { 1, 335, 2 };
 static const SANE_Range bw_y_range = { 0, 241, 1 };
 static const SANE_Range odd_bw_y_range = { 1, 242, 1 };
 
-#if defined(HAVE_SYS_IO_H) || defined(HAVE_ASM_IO_H) || defined (HAVE_SYS_HW_H)
+#include "../include/sane/sanei_directio.h"
 
-#ifdef HAVE_SYS_IO_H
-# include <sys/io.h>		/* GNU libc based OS */
-#elif HAVE_ASM_IO_H
-# include <asm/io.h>		/* older Linux */
-#elif HAVE_SYS_HW_H
-# include <sys/hw.h>		/* OS/2 */
-#endif
-
-#endif /* <sys/io.h> || <asm/io.h> || <sys/hw.h> */
-
-#define read_lpdata(d)		inb ((d)->port)
-#define read_lpstatus(d)	inb ((d)->port + 1)
-#define read_lpcontrol(d)	inb ((d)->port + 2)
-#define write_lpdata(d,v)	outb ((v), (d)->port)
-#define write_lpcontrol(d,v)	outb ((v), (d)->port + 2)
+#define read_lpdata(d)		sanei_inb ((d)->port)
+#define read_lpstatus(d)	sanei_inb ((d)->port + 1)
+#define read_lpcontrol(d)	sanei_inb ((d)->port + 2)
+#define write_lpdata(d,v)	sanei_outb ((d)->port, (v))
+#define write_lpcontrol(d,v)	sanei_outb ((d)->port + 2, (v))
 
 
 static SANE_Status
@@ -217,7 +207,7 @@ enable_ports (QC_Device * q)
   if (q->port < 0x278 || q->port > 0x3bc)
     return SANE_STATUS_INVAL;
 
-  if (ioperm (q->port, 3, 1) < 0)
+  if (sanei_ioperm (q->port, 3, 1) < 0)
     return SANE_STATUS_INVAL;
 
   return SANE_STATUS_GOOD;
@@ -226,7 +216,7 @@ enable_ports (QC_Device * q)
 static SANE_Status
 disable_ports (QC_Device * q)
 {
-  if (ioperm (q->port, 3, 0) < 0)
+  if (sanei_ioperm (q->port, 3, 0) < 0)
     return SANE_STATUS_INVAL;
 
   return SANE_STATUS_GOOD;
@@ -1454,14 +1444,14 @@ sane_init (SANE_Int * version_code, SANE_Auth_Callback authorize)
   char dev_name[PATH_MAX], *str;
   size_t len;
   FILE *fp;
-  authorize = authorize;	/* silence compilation warnings */
+  (void) authorize;		/* silence compilation warnings */
 
   DBG_INIT ();
 
   DBG (1, "sane_init: enter\n");
 
   if (version_code)
-    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, 0);
+    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, 0);
 
   fp = sanei_config_open (QCAM_CONFIG_FILE);
   if (!fp)
@@ -1521,7 +1511,7 @@ sane_get_devices (const SANE_Device *** device_list, SANE_Bool local_only)
 
   DBG (5, "sane_get_devices: enter\n");
 
-  local_only = local_only;	/* silence compilation warnings */
+  (void) local_only;		/* silence compilation warnings */
 
   if (devlist)
     free (devlist);
@@ -2129,7 +2119,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len,
     len = s->bytes_per_frame - s->num_bytes;
 
   DBG (8, "read(buf=%p,num_bytes=%ld,max_len=%d,len=%ld)\n",
-       buf, (long) s->num_bytes, max_len, (long) len);
+       (void *) buf, (long) s->num_bytes, max_len, (long) len);
 
   nread = read (s->read_fd, buf, len);
   if (nread <= 0)

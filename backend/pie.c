@@ -744,11 +744,8 @@ pie_get_inquiry_values (Pie_Device * dev, unsigned char *buffer)
   dev->inquiry_len = get_inquiry_additional_length (buffer) + 5;
 
   get_inquiry_vendor ((char *) buffer, dev->vendor);
-  dev->vendor[8] = '\0';
   get_inquiry_product ((char *) buffer, dev->product);
-  dev->product[16] = '\0';
   get_inquiry_version ((char *) buffer, dev->version);
-  dev->version[4] = '\0';
 
   dev->inquiry_x_res = get_inquiry_max_x_res (buffer);
   dev->inquiry_y_res = get_inquiry_max_y_res (buffer);
@@ -2936,7 +2933,7 @@ sane_init (SANE_Int * version_code, SANE_Auth_Callback __sane_unused__ authorize
   DBG (DBG_sane_init, "sane_init() build %d\n", BUILD);
 
   if (version_code)
-    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, BUILD);
+    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, BUILD);
 
   fp = sanei_config_open (PIE_CONFIG_FILE);
   if (!fp)

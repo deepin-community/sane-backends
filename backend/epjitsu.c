@@ -3,7 +3,7 @@
    This file implements a SANE backend for the Fujitsu fi-60F, the
    ScanSnap S300/S1300, and (hopefully) other Epson-based scanners.
 
-   Copyright 2007-2015 by m. allan noah <kitno455 at gmail dot com>
+   Copyright 2007-2022 by m. allan noah <kitno455 at gmail dot com>
    Copyright 2009 by Richard Goedeken <richard at fascinationsoftware dot com>
 
    Development funded by Microdea, Inc., TrueCheck, Inc. and Archivista, GmbH
@@ -155,6 +155,10 @@
       v31 2017-04-09, MAN
          - hardware gray support for fi-60F/65F (disabled pending calibration)
          - merge fi-60F/65F settings
+      v32 2022-11-15, MAN
+         - fix hanging scan when using source = ADF Back (fixes #601)
+      v33 2022-11-17, MAN
+         - S1300i: fix color plane offset at 225 and 330 dpi (fixes #538)
 
    SANE FLOW DIAGRAM
 
@@ -203,8 +207,14 @@
 #include "epjitsu-cmd.h"
 
 #define DEBUG 1
-#define BUILD 31
+#define BUILD 33
 
+#ifndef MIN
+  #define MIN(a,b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef MAX
+  #define MAX(a,b) ((a) > (b) ? (a) : (b))
+#endif
 #ifndef MAX3
   #define MAX3(a,b,c) ((a) > (b) ? ((a) > (c) ? a : c) : ((b) > (c) ? b : c))
 #endif
@@ -265,16 +275,16 @@ static struct scanner *scanner_devList = NULL;
 SANE_Status
 sane_init (SANE_Int * version_code, SANE_Auth_Callback authorize)
 {
-    authorize = authorize;        /* get rid of compiler warning */
+    (void) authorize;           /* get rid of compiler warning */
 
     DBG_INIT ();
     DBG (10, "sane_init: start\n");
 
     if (version_code)
-      *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, BUILD);
+      *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, BUILD);
 
     DBG (5, "sane_init: epjitsu backend %d.%d.%d, from %s\n",
-      SANE_CURRENT_MAJOR, V_MINOR, BUILD, PACKAGE_STRING);
+      SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, BUILD, PACKAGE_STRING);
 
     DBG (10, "sane_init: finish\n");
 
@@ -317,7 +327,7 @@ sane_get_devices (const SANE_Device *** device_list, SANE_Bool local_only)
     int num_devices=0;
     int i=0;
 
-    local_only = local_only;        /* get rid of compiler warning */
+    (void) local_only;          /* get rid of compiler warning */
 
     DBG (10, "sane_get_devices: start\n");
 
@@ -1137,7 +1147,7 @@ sane_get_option_descriptor (SANE_Handle handle, SANE_Int option)
     /* values stored in 1200 dpi units */
     /* must be converted to MM for sane */
     s->tl_x_range.min = SCANNER_UNIT_TO_FIXED_MM(0);
-    s->tl_x_range.max = SCANNER_UNIT_TO_FIXED_MM(get_page_width(s)-s->min_x);
+    s->tl_x_range.max = SCANNER_UNIT_TO_FIXED_MM(MAX(0, get_page_width(s)-s->min_x));
     s->tl_x_range.quant = MM_PER_UNIT_FIX;
 
     opt->name = SANE_NAME_SCAN_TL_X;
@@ -1156,7 +1166,7 @@ sane_get_option_descriptor (SANE_Handle handle, SANE_Int option)
     /* values stored in 1200 dpi units */
     /* must be converted to MM for sane */
     s->tl_y_range.min = SCANNER_UNIT_TO_FIXED_MM(0);
-    s->tl_y_range.max = SCANNER_UNIT_TO_FIXED_MM(get_page_height(s)-s->min_y);
+    s->tl_y_range.max = SCANNER_UNIT_TO_FIXED_MM(MAX(0, get_page_height(s)-s->min_y));
     s->tl_y_range.quant = MM_PER_UNIT_FIX;
 
     opt->name = SANE_NAME_SCAN_TL_Y;
@@ -1174,7 +1184,7 @@ sane_get_option_descriptor (SANE_Handle handle, SANE_Int option)
     /* values stored in 1200 dpi units */
     /* must be converted to MM for sane */
     s->br_x_range.min = SCANNER_UNIT_TO_FIXED_MM(s->min_x);
-    s->br_x_range.max = SCANNER_UNIT_TO_FIXED_MM(get_page_width(s));
+    s->br_x_range.max = SCANNER_UNIT_TO_FIXED_MM(MAX(s->min_x, get_page_width(s)));
     s->br_x_range.quant = MM_PER_UNIT_FIX;
 
     opt->name = SANE_NAME_SCAN_BR_X;
@@ -1193,7 +1203,7 @@ sane_get_option_descriptor (SANE_Handle handle, SANE_Int option)
     /* values stored in 1200 dpi units */
     /* must be converted to MM for sane */
     s->br_y_range.min = SCANNER_UNIT_TO_FIXED_MM(s->min_y);
-    s->br_y_range.max = SCANNER_UNIT_TO_FIXED_MM(get_page_height(s));
+    s->br_y_range.max = SCANNER_UNIT_TO_FIXED_MM(MAX(s->min_y, get_page_height(s)));
     s->br_y_range.quant = MM_PER_UNIT_FIX;
 
     opt->name = SANE_NAME_SCAN_BR_Y;
@@ -2042,14 +2052,12 @@ change_params(struct scanner *s)
     /* height */
     if (s->tl_y > s->max_y - s->min_y)
        s->tl_y = s->max_y - s->min_y - s->adf_height_padding;
-    if (s->tl_y + s->page_height > s->max_y - s->adf_height_padding)
-       s->page_height = s->max_y - s->adf_height_padding - s->tl_y;
-    if (s->page_height < s->min_y && s->page_height > 0)
-       s->page_height = s->min_y;
+    s->page_height = MIN(s->page_height, s->max_y - s->adf_height_padding - s->tl_y);
+    if (s->page_height > 0)
+       s->page_height = MAX(s->page_height, s->min_y);
     if (s->tl_y + s->page_height > s->max_y)
        s->tl_y = s->max_y - s->adf_height_padding - s->page_height;
-    if (s->tl_y < 0)
-       s->tl_y = 0;
+    s->tl_y = MAX(s->tl_y, 0);
 
     if (s->page_height > 0) {
         s->br_y = s->tl_y + s->page_height;
@@ -2059,10 +2067,9 @@ change_params(struct scanner *s)
     }
 
     /*width*/
-    if (s->page_width > s->max_x)
-       s->page_width = s->max_x;
-    else if (s->page_width < s->min_x)
-       s->page_width = s->min_x;
+    s->page_width = MIN(s->page_width, s->max_x);
+    s->page_width = MAX(s->page_width, s->min_x);
+
     s->tl_x = (s->max_x - s->page_width)/2;
     s->br_x = (s->max_x + s->page_width)/2;
 
@@ -2177,7 +2184,7 @@ change_params(struct scanner *s)
       /* adf with specified paper size */
       s->front.height = SCANNER_UNIT_TO_PIX(s->page_height, s->front.y_res);
     }
-    s->front.width_pix = s->block_img.width_pix;
+    s->front.width_pix = SCANNER_UNIT_TO_PIX(s->page_width, s->resolution * img_heads);
     s->front.x_start_offset = (s->block_xfr.image->width_pix - s->front.width_pix)/2;
     switch (s->mode) {
       case MODE_COLOR:
@@ -2310,12 +2317,8 @@ load_lut (unsigned char * lut,
   for(i=0;i<=max_in_val;i++){
     j = rise*i + shift;
 
-    if(j<out_min){
-      j=out_min;
-    }
-    else if(j>out_max){
-      j=out_max;
-    }
+    j = MAX(j, out_min);
+    j = MIN(j, out_max);
 
     *lut_p=j;
     lut_p++;
@@ -2654,7 +2657,7 @@ coarsecal_send_cal(struct scanner *s, unsigned char *pay)
     unsigned char stat[1];
     size_t cmdLen,statLen,payLen;
 
-    DBG (5, "coarsecal_send_cal: start\n");
+    DBG (10, "coarsecal_send_cal: start\n");
     /* send coarse cal (c6) */
     cmd[0] = 0x1b;
     cmd[1] = 0xc6;
@@ -2697,7 +2700,7 @@ coarsecal_send_cal(struct scanner *s, unsigned char *pay)
         return SANE_STATUS_IO_ERROR;
     }
 
-    DBG (5, "coarsecal_send_cal: finish\n");
+    DBG (10, "coarsecal_send_cal: finish\n");
     return ret;
 }
 
@@ -2709,7 +2712,7 @@ coarsecal_get_line(struct scanner *s, struct image *img)
     unsigned char stat[1];
     size_t cmdLen,statLen;
 
-    DBG (5, "coarsecal_get_line: start\n");
+    DBG (10, "coarsecal_get_line: start\n");
 
     /* send scan d2 command */
     cmd[0] = 0x1b;
@@ -2746,7 +2749,7 @@ coarsecal_get_line(struct scanner *s, struct image *img)
     /* convert the raw data into normal packed pixel data */
     descramble_raw(s, &s->cal_image);
 
-    DBG (5, "coarsecal_get_line: finish\n");
+    DBG (10, "coarsecal_get_line: finish\n");
     return ret;
 }
 
@@ -2758,7 +2761,7 @@ coarsecal_dark(struct scanner *s, unsigned char *pay)
     int try_count, cal_good[2], x, j;
     int param[2], zcount[2], high_param[2], low_param[2], avg[2], maxval[2];
 
-    DBG (5, "coarsecal_dark: start\n");
+    DBG (10, "coarsecal_dark: start\n");
 
     /* dark cal, lamp off */
     ret = lamp(s,0);
@@ -2844,7 +2847,7 @@ coarsecal_dark(struct scanner *s, unsigned char *pay)
 
     } /* continue looping for up to 8 tries */
 
-    DBG (5, "coarsecal_dark: finish\n");
+    DBG (10, "coarsecal_dark: finish\n");
     return ret;
 }
 
@@ -2857,7 +2860,7 @@ coarsecal_light(struct scanner *s, unsigned char *pay)
     int param[2], zcount[2], high_param[2], low_param[2], avg[2];
     int rgb_avg[2][3], rgb_hicount[2][3];
 
-    DBG (5, "coarsecal_light: start\n");
+    DBG (10, "coarsecal_light: start\n");
 
     /* light cal, lamp on */
     ret = lamp(s,1);
@@ -2961,7 +2964,7 @@ coarsecal_light(struct scanner *s, unsigned char *pay)
         }
     }
 
-    DBG (5, "coarsecal_light: finish\n");
+    DBG (10, "coarsecal_light: finish\n");
     return ret;
 }
 
@@ -3022,6 +3025,8 @@ finecal_send_cal(struct scanner *s)
     int i, j, k;
     unsigned char *p_out, *p_in = s->sendcal.buffer;
     int planes;
+
+    DBG (10, "finecal_send_cal: start\n");
 
     if(s->model == MODEL_FI60F || s->model == MODEL_FI65F)
       planes = 3;
@@ -3165,6 +3170,7 @@ finecal_send_cal(struct scanner *s)
         return SANE_STATUS_IO_ERROR;
     }
 
+    DBG (10, "finecal_send_cal: finish\n");
     return ret;
 }
 
@@ -3181,6 +3187,8 @@ finecal_get_line(struct scanner *s, struct image *img)
 
     int round_offset = img->height / 2;
     int i, j, k;
+
+    DBG (10, "finecal_get_line: start\n");
 
     /* ask for 16 lines */
     ret = set_window(s, WINDOW_FINECAL);
@@ -3238,6 +3246,8 @@ finecal_get_line(struct scanner *s, struct image *img)
             avgpix[j] = (total + round_offset) / img->height;
         }
     }
+
+    DBG (10, "finecal_get_line: finish\n");
     return ret;
 }
 
@@ -3385,8 +3395,8 @@ finecal(struct scanner *s)
                     else
                         s->sendcal.buffer[idx * 2 + 1] = newgain;
                     /* update statistics */
-                    if (pixvalue < min_value[i][k]) min_value[i][k] = pixvalue;
-                    if (pixvalue > max_value[i][k]) max_value[i][k] = pixvalue;
+                    min_value[i][k] = MIN(min_value[i][k], pixvalue);
+                    max_value[i][k] = MAX(max_value[i][k], pixvalue);
                     avg_value[i][k] += pixerror;
                     variance[i][k] += (pixerror * pixerror);
                     idx++;
@@ -3658,13 +3668,8 @@ send_lut (struct scanner *s)
     for(i=0;i<width;i++){
       j=slope*i + offset + b;
 
-      if(j<0){
-        j=0;
-      }
-
-      if(j>(height-1)){
-        j=height-1;
-      }
+      j = MAX(j, 0);
+      j = MIN(j, height-1);
 
         if (s->model == MODEL_S1100){
             /*only one table, be order*/
@@ -4078,9 +4083,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
     }
 
     *len = page->bytes_scanned - page->bytes_read;
-    if(*len > max_len){
-        *len = max_len;
-    }
+    *len = MIN(*len, max_len);
 
     if(*len){
         DBG (10, "sane_read: copy rx:%d tx:%d tot:%d len:%d\n",
@@ -4088,12 +4091,12 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
 
         memcpy(buf, page->image->buffer + page->bytes_read, *len);
         page->bytes_read += *len;
+    }
 
-        /* sent it all, return eof on next read */
-        if(page->bytes_read == page->bytes_scanned && s->fullscan.done){
-            DBG (10, "sane_read: side done\n");
-            page->done = 1;
-        }
+    /* sent it all, return eof on next read */
+    if(page->bytes_read == page->bytes_scanned && s->fullscan.done){
+        DBG (10, "sane_read: side done\n");
+        page->done = 1;
     }
 
     DBG (10, "sane_read: finish si:%d len:%d max:%d\n",s->side,*len,max_len);
@@ -4161,6 +4164,7 @@ descramble_raw(struct scanner *s, struct transfer * tp)
         for (j = 0; j < height; j++){             /* row (y)*/
           int curr_col = 0;
           int r=0, g=0, b=0, ppc=0;
+          int g_offset=0, b_offset=0;
 
           for (k = 0; k <= tp->plane_width; k++){  /* column (x) */
             int this_col = k*tp->image->x_res/tp->x_res;
@@ -4185,14 +4189,20 @@ descramble_raw(struct scanner *s, struct transfer * tp)
               break;
             }
 
+            /* if we're using an S1300i with scan resolution 225 or 300, on AC power, the color planes are shifted */
+            if(s->model == MODEL_S1300i && !s->usb_power && (tp->x_res == 225 || tp->x_res == 300) && tp != &s->cal_image && k + 2 <= tp->plane_width){
+              g_offset = 3;
+              b_offset = 6;
+            }
+
             /*red is first*/
             r += tp->raw_data[j*tp->line_stride + k*3 + i];
 
             /*green is second*/
-            g += tp->raw_data[j*tp->line_stride + tp->plane_stride + k*3 + i];
+            g += tp->raw_data[j*tp->line_stride + tp->plane_stride + k*3 + i + g_offset];
 
             /*blue is third*/
-            b += tp->raw_data[j*tp->line_stride + 2*tp->plane_stride + k*3 + i];
+            b += tp->raw_data[j*tp->line_stride + 2*tp->plane_stride + k*3 + i + b_offset];
 
             ppc++;
           }
@@ -4341,8 +4351,8 @@ read_from_scanner(struct scanner *s, struct transfer * tp)
     size_t bufLen;
 
     /* determine amount to ask for, S1300i wants big requests */
-    if(bytes > remainBlock && s->model != MODEL_S1300i){
-        bytes = remainBlock;
+    if(s->model != MODEL_S1300i){
+        bytes = MIN(bytes, remainBlock);
     }
 
     if (tp->image == NULL)
@@ -4932,8 +4942,7 @@ maxStringSize (const SANE_String_Const strings[])
 
   for (i = 0; strings[i]; ++i) {
     size = strlen (strings[i]) + 1;
-    if (size > max_size)
-      max_size = size;
+    max_size = MAX(max_size, size);
   }
 
   return max_size;

@@ -7,7 +7,7 @@ Index: trunk/backend/dll.c
 ===================================================================
 --- trunk.orig/backend/dll.c
 +++ trunk/backend/dll.c
-@@ -470,7 +470,7 @@ load (struct backend *be)
+@@ -468,18 +468,18 @@ load (struct backend *be)
  
    if (path)
      {
@@ -16,10 +16,9 @@ Index: trunk/backend/dll.c
        src = malloc (src_len);
        if (!src)
  	{
-@@ -480,11 +480,11 @@ load (struct backend *be)
-       if (orig_src)
-         free (orig_src);
-       orig_src = src;
+ 	  DBG (1, "load: malloc failed: %s\n", strerror (errno));
+ 	  return SANE_STATUS_NO_MEM;
+ 	}
 -      snprintf (src, src_len, "%s%s%s", path, DIR_SEP, LIBDIR);
 +      snprintf (src, src_len, "%s%s%s", path, DIR_SEP, DEB_DLL_LIBDIR);
      }
@@ -34,7 +33,7 @@ Index: trunk/backend/Makefile.am
 ===================================================================
 --- trunk.orig/backend/Makefile.am
 +++ trunk/backend/Makefile.am
-@@ -4,7 +4,7 @@
+@@ -5,7 +5,7 @@
  ##  This file is part of the "Sane" build infra-structure.  See
  ##  included LICENSE file for license information.
  

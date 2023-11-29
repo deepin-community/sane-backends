@@ -61,6 +61,26 @@ static const SANE_Device **devlist = NULL;
 static ESCL_Device *list_devices_primary = NULL;
 static int num_devices = 0;
 
+#ifdef CURL_SSLVERSION_MAX_DEFAULT
+static int proto_tls[] = {
+        CURL_SSLVERSION_MAX_DEFAULT,
+   #ifdef CURL_SSLVERSION_MAX_TLSv1_3
+        CURL_SSLVERSION_MAX_TLSv1_3,
+   #endif
+   #ifdef CURL_SSLVERSION_MAX_TLSv1_2
+        CURL_SSLVERSION_MAX_TLSv1_2,
+   #endif
+   #ifdef CURL_SSLVERSION_MAX_TLSv1_1
+        CURL_SSLVERSION_MAX_TLSv1_1,
+   #endif
+   #ifdef CURL_SSLVERSION_MAX_TLSv1_0
+        CURL_SSLVERSION_MAX_TLSv1_0,
+   #endif
+        -1
+};
+#endif
+
+
 typedef struct Handled {
     struct Handled *next;
     ESCL_Device *device;
@@ -98,6 +118,60 @@ escl_free_device(ESCL_Device *current)
     free(current);
     return NULL;
 }
+
+
+#ifdef CURL_SSLVERSION_MAX_DEFAULT
+static int
+escl_tls_protocol_supported(char *url, int proto)
+{
+   CURLcode res = CURLE_UNSUPPORTED_PROTOCOL;
+   CURL *curl = curl_easy_init();
+   if(curl) {
+      curl_easy_setopt(curl, CURLOPT_URL, url);
+
+      /* ask libcurl to use TLS version 1.0 or later */
+      curl_easy_setopt(curl, CURLOPT_SSLVERSION, proto);
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+      curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+      curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+      curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 3L);
+      /* Perform the request */
+      res = curl_easy_perform(curl);
+      curl_easy_cleanup(curl);
+   }
+   return res;
+}
+
+static int
+escl_is_tls(char * url, char *type)
+{
+    int tls_version = 0;
+    if(!strcmp(type, "_uscans._tcp") ||
+       !strcmp(type, "https"))
+      {
+         while(proto_tls[tls_version] != -1)
+          {
+                if (escl_tls_protocol_supported(url, proto_tls[tls_version]) == CURLE_OK)
+                {
+                        DBG(10, "curl tls compatible (%d)\n", proto_tls[tls_version]);
+                        break;
+                }
+                tls_version++;
+          }
+         if (proto_tls[tls_version] < 1)
+            return 0;
+      }
+      return proto_tls[tls_version];
+}
+#else
+static int
+escl_is_tls(char * url, char *type)
+{
+    (void)url;
+    (void)type;
+    return 0;
+}
+#endif
 
 void
 escl_free_handler(escl_sane_t *handler)
@@ -187,8 +261,13 @@ escl_device_add(int port_nb,
 {
     char tmp[PATH_MAX] = { 0 };
     char *model = NULL;
+    char url_port[512] = { 0 };
+    int tls_version = 0;
     ESCL_Device *current = NULL;
     DBG (10, "escl_device_add\n");
+    snprintf(url_port, sizeof(url_port), "https://%s:%d", ip_address, port_nb);
+    tls_version = escl_is_tls(url_port, type);
+
     for (current = list_devices_primary; current; current = current->next) {
 	if ((strcmp(current->ip_address, ip_address) == 0) ||
             (uuid && current->uuid && !strcmp(current->uuid, uuid)))
@@ -206,6 +285,7 @@ escl_device_add(int port_nb,
                        }
                        current->port_nb = port_nb;
                        current->https = SANE_TRUE;
+                       current->tls = tls_version;
                     }
 	          return (SANE_STATUS_GOOD);
                 }
@@ -226,6 +306,7 @@ escl_device_add(int port_nb,
     } else {
         current->https = SANE_FALSE;
     }
+    current->tls = tls_version;
     model = (char*)(tmp[0] != 0 ? tmp : model_name);
     current->model_name = strdup(model);
     current->ip_address = strdup(ip_address);
@@ -432,7 +513,8 @@ attach_one_config(SANEI_Config __sane_unused__ *config, const char *line,
     int port = 0;
     SANE_Status status;
     static ESCL_Device *escl_device = NULL;
-
+    if (*line == '#') return SANE_STATUS_GOOD;
+    if (!strncmp(line, "pdfblacklist", 12)) return SANE_STATUS_GOOD;
     if (strncmp(line, "device", 6) == 0) {
         char *name_str = NULL;
         char *opt_model = NULL;
@@ -469,7 +551,6 @@ attach_one_config(SANEI_Config __sane_unused__ *config, const char *line,
         }
         escl_device->model_name = opt_model ? opt_model : strdup("Unknown model");
         escl_device->is = strdup("flatbed or ADF scanner");
-        escl_device->type = strdup("In url");
         escl_device->uuid = NULL;
     }
 
@@ -514,6 +595,9 @@ attach_one_config(SANEI_Config __sane_unused__ *config, const char *line,
     }
     escl_device->is = strdup("flatbed or ADF scanner");
     escl_device->uuid = NULL;
+    char url_port[512] = { 0 };
+    snprintf(url_port, sizeof(url_port), "https://%s:%d", escl_device->ip_address, escl_device->port_nb);
+    escl_device->tls = escl_is_tls(url_port, escl_device->type);
     status = escl_check_and_add_device(escl_device);
     if (status == SANE_STATUS_GOOD)
        escl_device = NULL;
@@ -955,7 +1039,7 @@ init_options(SANE_String_Const name_source, escl_sane_t *s)
     s->opt[OPT_BRIGHTNESS].constraint_type = SANE_CONSTRAINT_RANGE;
     if (s->scanner->brightness) {
        s->opt[OPT_BRIGHTNESS].constraint.range = &s->brightness_range;
-       s->val[OPT_BRIGHTNESS].w = s->scanner->brightness->normal;
+       s->val[OPT_BRIGHTNESS].w = s->scanner->brightness->value;
        s->brightness_range.quant=1;
        s->brightness_range.min=s->scanner->brightness->min;
        s->brightness_range.max=s->scanner->brightness->max;
@@ -974,7 +1058,7 @@ init_options(SANE_String_Const name_source, escl_sane_t *s)
     s->opt[OPT_CONTRAST].constraint_type = SANE_CONSTRAINT_RANGE;
     if (s->scanner->contrast) {
        s->opt[OPT_CONTRAST].constraint.range = &s->contrast_range;
-       s->val[OPT_CONTRAST].w = s->scanner->contrast->normal;
+       s->val[OPT_CONTRAST].w = s->scanner->contrast->value;
        s->contrast_range.quant=1;
        s->contrast_range.min=s->scanner->contrast->min;
        s->contrast_range.max=s->scanner->contrast->max;
@@ -993,7 +1077,7 @@ init_options(SANE_String_Const name_source, escl_sane_t *s)
     s->opt[OPT_SHARPEN].constraint_type = SANE_CONSTRAINT_RANGE;
     if (s->scanner->sharpen) {
        s->opt[OPT_SHARPEN].constraint.range = &s->sharpen_range;
-       s->val[OPT_SHARPEN].w = s->scanner->sharpen->normal;
+       s->val[OPT_SHARPEN].w = s->scanner->sharpen->value;
        s->sharpen_range.quant=1;
        s->sharpen_range.min=s->scanner->sharpen->min;
        s->sharpen_range.max=s->scanner->sharpen->max;
@@ -1013,7 +1097,7 @@ init_options(SANE_String_Const name_source, escl_sane_t *s)
     s->opt[OPT_THRESHOLD].constraint_type = SANE_CONSTRAINT_RANGE;
     if (s->scanner->threshold) {
       s->opt[OPT_THRESHOLD].constraint.range = &s->thresold_range;
-      s->val[OPT_THRESHOLD].w = s->scanner->threshold->normal;
+      s->val[OPT_THRESHOLD].w = s->scanner->threshold->value;
       s->thresold_range.quant=1;
       s->thresold_range.min= s->scanner->threshold->min;
       s->thresold_range.max=s->scanner->threshold->max;
@@ -1068,9 +1152,11 @@ escl_parse_name(SANE_String_Const name, ESCL_Device *device)
 
     if (strncmp(name, "https://", 8) == 0) {
         device->https = SANE_TRUE;
+        device->type = strdup("https");
         host = name + 8;
     } else if (strncmp(name, "http://", 7) == 0) {
         device->https = SANE_FALSE;
+        device->type = strdup("http");
         host = name + 7;
     } else {
         DBG(1, "Unknown URL scheme in %s", name);
@@ -1135,6 +1221,37 @@ finish_hack:
   fclose(fp);
 }
 
+static char*
+_get_blacklist_pdf(void)
+{
+  FILE *fp;
+  char *blacklist = NULL;
+  SANE_Char line[PATH_MAX];
+
+  /* open configuration file */
+  fp = sanei_config_open (ESCL_CONFIG_FILE);
+  if (!fp)
+    {
+      DBG (2, "_get_blacklit: couldn't access %s\n", ESCL_CONFIG_FILE);
+      DBG (3, "_get_blacklist: exit\n");
+    }
+
+  /* loop reading the configuration file, all line beginning by "option " are
+   * parsed for value to store in configuration structure, other line are
+   * used are device to try to attach
+   */
+  while (sanei_config_read (line, PATH_MAX, fp))
+    {
+       if (!strncmp(line, "pdfblacklist", 12)) {
+          blacklist = strdup(line);
+	  goto finish_;
+       }
+    }
+finish_:
+  DBG (3, "_get_blacklist_pdf: finish\n");
+  fclose(fp);
+  return blacklist;
+}
 
 
 /**
@@ -1149,6 +1266,7 @@ finish_hack:
 SANE_Status
 sane_open(SANE_String_Const name, SANE_Handle *h)
 {
+    char *blacklist = NULL;
     DBG (10, "escl sane_open\n");
     SANE_Status status;
     escl_sane_t *handler = NULL;
@@ -1173,7 +1291,8 @@ sane_open(SANE_String_Const name, SANE_Handle *h)
         return (SANE_STATUS_NO_MEM);
     }
     handler->device = device;  // Handler owns device now.
-    handler->scanner = escl_capabilities(device, &status);
+    blacklist = _get_blacklist_pdf();
+    handler->scanner = escl_capabilities(device, blacklist, &status);
     if (status != SANE_STATUS_GOOD) {
         escl_free_handler(handler);
         return (status);
@@ -1222,9 +1341,11 @@ sane_cancel(SANE_Handle h)
     }
     handler->scanner->work = SANE_FALSE;
     handler->cancel = SANE_TRUE;
-    escl_scanner(handler->device, handler->result);
+    escl_scanner(handler->device, handler->scanner->scanJob, handler->result);
     free(handler->result);
     handler->result = NULL;
+    free(handler->scanner->scanJob);
+    handler->scanner->scanJob = NULL;
 }
 
 /**
@@ -1381,6 +1502,7 @@ sane_control_option(SANE_Handle h, SANE_Int n, SANE_Action a, void *v, SANE_Int 
 	    break;
 	case OPT_RESOLUTION:
             handler->val[n].w = _get_resolution(handler, (int)(*(SANE_Word *) v));
+	    handler->scanner->caps[handler->scanner->source].default_resolution = handler->val[n].w;
 	    if (i)
 		*i |= SANE_INFO_RELOAD_PARAMS | SANE_INFO_RELOAD_OPTIONS | SANE_INFO_INEXACT;
 	    break;
@@ -1591,7 +1713,7 @@ sane_start(SANE_Handle h)
          return SANE_STATUS_NO_DOCS;
        }
     }
-    status = escl_scan(handler->scanner, handler->device, handler->result);
+    status = escl_scan(handler->scanner, handler->device, handler->scanner->scanJob, handler->result);
     if (status != SANE_STATUS_GOOD)
        return (status);
     if (!strcmp(handler->scanner->caps[handler->scanner->source].default_format, "image/jpeg"))
@@ -1774,6 +1896,8 @@ escl_curl_url(CURL *handle, const ESCL_Device *device, SANE_String_Const path)
         DBG( 1, "Ignoring safety certificates, use https\n");
         curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
         curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
+        if (device->tls > 0)
+           curl_easy_setopt(handle, CURLOPT_SSLVERSION, device->tls);
     }
     if (device->unix_socket != NULL) {
         DBG( 1, "Using local socket %s\n", device->unix_socket );

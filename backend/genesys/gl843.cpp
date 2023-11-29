@@ -17,27 +17,6 @@
 
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-   As a special exception, the authors of SANE give permission for
-   additional uses of the libraries contained in this release of SANE.
-
-   The exception is that, if you link a SANE library with other files
-   to produce an executable, this does not by itself cause the
-   resulting executable to be covered by the GNU General Public
-   License.  Your use of that executable is in no way restricted on
-   account of linking the SANE library code into it.
-
-   This exception does not, however, invalidate any other reasons why
-   the executable file might be covered by the GNU General Public
-   License.
-
-   If you submit changes to SANE to the maintainers to be included in
-   a subsequent release, you agree by submitting the changes that
-   those changes may be distributed with this exception intact.
-
-   If you write modifications of your own for SANE, it is your choice
-   whether to permit this exception to apply to your modifications.
-   If you do not wish that, delete this exception notice.
 */
 
 #define DEBUG_DECLARE_ONLY
@@ -618,7 +597,7 @@ gl843_init_registers (Genesys_Device * dev)
     }
 
     if (dev->model->model_id == ModelId::PLUSTEK_OPTICFILM_7200I) {
-        uint8_t data[32] = {
+        std::uint8_t data[32] = {
             0x8c, 0x8f, 0xc9, 0x00, 0x01, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -637,7 +616,8 @@ static void gl843_set_ad_fe(Genesys_Device* dev)
 }
 
 // Set values of analog frontend
-void CommandSetGl843::set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor, uint8_t set) const
+void CommandSetGl843::set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor,
+                             std::uint8_t set) const
 {
     DBG_HELPER_ARGS(dbg, "%s", set == AFE_INIT ? "init" :
                                set == AFE_SET ? "set" :
@@ -650,7 +630,7 @@ void CommandSetGl843::set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor, 
 
     // check analog frontend type
     // FIXME: looks like we write to that register with initial data
-    uint8_t fe_type = dev->interface->read_register(REG_0x04) & REG_0x04_FESET;
+    std::uint8_t fe_type = dev->interface->read_register(REG_0x04) & REG_0x04_FESET;
     if (fe_type == 2) {
         gl843_set_ad_fe(dev);
         return;
@@ -1062,7 +1042,7 @@ void CommandSetGl843::init_regs_for_scan_session(Genesys_Device* dev, const Gene
     dev->session = session;
 
   dev->total_bytes_read = 0;
-    dev->total_bytes_to_read = session.output_line_bytes_requested * session.params.lines;
+    dev->total_bytes_to_read = (size_t)session.output_line_bytes_requested * (size_t)session.params.lines;
 
     DBG(DBG_info, "%s: total bytes to send = %zu\n", __func__, dev->total_bytes_to_read);
 }
@@ -1122,6 +1102,8 @@ ScanSession CommandSetGl843::calculate_scan_session(const Genesys_Device* dev,
     session.params.scan_method = settings.scan_method;
     session.params.scan_mode = settings.scan_mode;
     session.params.color_filter = settings.color_filter;
+    session.params.contrast_adjustment = settings.contrast;
+    session.params.brightness_adjustment = settings.brightness;
     session.params.flags = flags;
     compute_session(dev, session, sensor);
 
@@ -1139,7 +1121,7 @@ void CommandSetGl843::save_power(Genesys_Device* dev, bool enable) const
 
     // switch KV-SS080 lamp off
     if (dev->model->gpio_id == GpioId::KVSS080) {
-        uint8_t val = dev->interface->read_register(REG_0x6C);
+        std::uint8_t val = dev->interface->read_register(REG_0x6C);
         if (enable) {
             val &= 0xef;
         } else {
@@ -1159,7 +1141,7 @@ static bool gl843_get_paper_sensor(Genesys_Device* dev)
 {
     DBG_HELPER(dbg);
 
-    uint8_t val = dev->interface->read_register(REG_0x6D);
+    std::uint8_t val = dev->interface->read_register(REG_0x6D);
 
     return (val & 0x1) == 0;
 }
@@ -1240,6 +1222,7 @@ void CommandSetGl843::begin_scan(Genesys_Device* dev, const Genesys_Sensor& sens
             dev->interface->write_register(0x7e, 0x04);
             break;
         case GpioId::G4050:
+        case GpioId::G4010:
             dev->interface->write_register(REG_0xA7, 0xfe);
             dev->interface->write_register(REG_0xA8, 0x3e);
             dev->interface->write_register(REG_0xA9, 0x06);
@@ -1301,7 +1284,7 @@ void CommandSetGl843::begin_scan(Genesys_Device* dev, const Genesys_Sensor& sens
     scanner_clear_scan_and_feed_counts(*dev);
 
     // enable scan and motor
-    uint8_t val = dev->interface->read_register(REG_0x01);
+    std::uint8_t val = dev->interface->read_register(REG_0x01);
     val |= REG_0x01_SCAN;
     dev->interface->write_register(REG_0x01, val);
 
@@ -1432,6 +1415,8 @@ void CommandSetGl843::init_regs_for_shading(Genesys_Device* dev, const Genesys_S
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = dev->settings.scan_mode;
     session.params.color_filter = dev->settings.color_filter;
+    session.params.contrast_adjustment = dev->settings.contrast;
+    session.params.brightness_adjustment = dev->settings.brightness;
     session.params.flags = flags;
     compute_session(dev, session, calib_sensor);
 
@@ -1452,11 +1437,11 @@ void CommandSetGl843::send_gamma_table(Genesys_Device* dev, const Genesys_Sensor
   size = 256;
 
   /* allocate temporary gamma tables: 16 bits words, 3 channels */
-  std::vector<uint8_t> gamma(size * 2 * 3);
+    std::vector<std::uint8_t> gamma(size * 2 * 3);
 
-    std::vector<uint16_t> rgamma = get_gamma_table(dev, sensor, GENESYS_RED);
-    std::vector<uint16_t> ggamma = get_gamma_table(dev, sensor, GENESYS_GREEN);
-    std::vector<uint16_t> bgamma = get_gamma_table(dev, sensor, GENESYS_BLUE);
+    std::vector<std::uint16_t> rgamma = get_gamma_table(dev, sensor, GENESYS_RED);
+    std::vector<std::uint16_t> ggamma = get_gamma_table(dev, sensor, GENESYS_GREEN);
+    std::vector<std::uint16_t> bgamma = get_gamma_table(dev, sensor, GENESYS_BLUE);
 
     // copy sensor specific's gamma tables
     for (i = 0; i < size; i++) {
@@ -1535,6 +1520,8 @@ void CommandSetGl843::init_regs_for_warmup(Genesys_Device* dev, const Genesys_Se
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = dev->settings.color_filter;
+    session.params.contrast_adjustment = 0;
+    session.params.brightness_adjustment = 0;
     session.params.flags = flags;
 
     compute_session(dev, session, calib_sensor);
@@ -1567,7 +1554,7 @@ static void gl843_init_gpio(Genesys_Device* dev)
 void CommandSetGl843::asic_boot(Genesys_Device* dev, bool cold) const
 {
     DBG_HELPER(dbg);
-  uint8_t val;
+    std::uint8_t val;
 
     if (cold) {
         dev->interface->write_register(0x0e, 0x01);
@@ -1679,7 +1666,8 @@ void CommandSetGl843::update_hardware_sensors(Genesys_Scanner* s) const
      any of them.
    */
 
-    uint8_t val = s->dev->interface->read_register(REG_0x6D);
+    std::uint8_t val = s->dev->interface->read_register(REG_0x6D);
+    DBG(DBG_io, "%s: read buttons_gpio value=0x%x\n", __func__, (int)val);
 
   switch (s->dev->model->gpio_id)
     {
@@ -1692,8 +1680,27 @@ void CommandSetGl843::update_hardware_sensors(Genesys_Scanner* s) const
             s->buttons[BUTTON_EMAIL_SW].write((val & 0x04) == 0);
             s->buttons[BUTTON_COPY_SW].write((val & 0x08) == 0);
             break;
-        case GpioId::CANON_4400F:
+        case GpioId::G4010:
+            s->buttons[BUTTON_FILE_SW].write((val & 0x01) == 0);
+            s->buttons[BUTTON_COPY_SW].write((val & 0x04) == 0);
+            s->buttons[BUTTON_TRANSP_SW].write((val & 0x40) == 0);
+            s->buttons[BUTTON_SCAN_SW].write((val & 0x08) == 0);
+            break;
         case GpioId::CANON_8400F:
+            s->buttons[BUTTON_COPY_SW].write((val & 0x01) == 0);
+            s->buttons[BUTTON_SCAN_SW].write((val & 0x02) == 0);
+            s->buttons[BUTTON_FILE_SW].write((val & 0x04) == 0);
+            s->buttons[BUTTON_EMAIL_SW].write((val & 0x08) == 0);
+            break;
+        case GpioId::CANON_4400F:
+            s->buttons[BUTTON_COPY_SW].write((val & 0x68) == 0x28);
+            s->buttons[BUTTON_TRANSP_SW].write((val & 0x68) == 0x20);
+            s->buttons[BUTTON_EMAIL_SW].write((val & 0x68) == 0x08);
+            s->buttons[BUTTON_PDF1_SW].write((val & 0x68) == 0x00);
+            s->buttons[BUTTON_PDF2_SW].write((val & 0x68) == 0x60);
+            s->buttons[BUTTON_PDF3_SW].write((val & 0x68) == 0x48);
+            s->buttons[BUTTON_PDF4_SW].write((val & 0x68) == 0x40);
+            break;
         default:
             break;
     }
@@ -1710,11 +1717,10 @@ void CommandSetGl843::update_home_sensor_gpio(Genesys_Device& dev) const
  * for all the channels.
  */
 void CommandSetGl843::send_shading_data(Genesys_Device* dev, const Genesys_Sensor& sensor,
-                                        uint8_t* data, int size) const
+                                        std::uint8_t* data, int size) const
 {
     DBG_HELPER(dbg);
-    uint32_t final_size, i;
-  uint8_t *buffer;
+    std::uint32_t final_size, i;
     int count;
 
     int offset = 0;
@@ -1742,10 +1748,10 @@ void CommandSetGl843::send_shading_data(Genesys_Device* dev, const Genesys_Senso
   /* compute and allocate size for final data */
   final_size = ((length+251) / 252) * 256;
   DBG(DBG_io, "%s: final shading size=%04x (length=%d)\n", __func__, final_size, length);
-  std::vector<uint8_t> final_data(final_size, 0);
+    std::vector<std::uint8_t> final_data(final_size, 0);
 
   /* copy regular shading data to the expected layout */
-  buffer = final_data.data();
+    std::uint8_t* buffer = final_data.data();
   count = 0;
     if (offset < 0) {
         count += (-offset);

@@ -877,7 +877,7 @@ pixma_scan (pixma_t * s, pixma_scan_param_t * sp)
 	     sp->line_size, sp->image_size, sp->channels, sp->depth);
   pixma_dbg (3, "  dpi=%ux%u offset=(%u,%u) dimension=%ux%u\n",
 	     sp->xdpi, sp->ydpi, sp->x, sp->y, sp->w, sp->h);
-  pixma_dbg (3, "  gamma=%f gamma_table=%p source=%d\n", sp->gamma, sp->gamma_table, sp->source);
+  pixma_dbg (3, "  gamma=%f gamma_table=%p source=%d\n", sp->gamma, (void *) sp->gamma_table, sp->source);
   pixma_dbg (3, "  threshold=%d threshold_curve=%d\n", sp->threshold, sp->threshold_curve);
   pixma_dbg (3, "  adf-wait=%d\n", sp->adf_wait);
   pixma_dbg (3, "  ADF page count: %d\n", sp->adf_pageid);
@@ -968,16 +968,16 @@ pixma_read_image (pixma_t * s, void *buf, unsigned len)
               s->last_source = s->param->source;
               if ((s->cur_image_size != s->param->image_size) && !s->param->mode_jpeg)
                 {
-                  pixma_dbg (1, "WARNING:image size mismatches\n");
-                  pixma_dbg (1,
+                  PDBG (pixma_dbg (1, "WARNING:image size mismatches\n"));
+                  PDBG (pixma_dbg (1,
                        "    %"PRIu64" expected (%d lines) but %"PRIu64" received (%"PRIu64" lines)\n",
                        s->param->image_size, s->param->h,
                        s->cur_image_size,
-                       s->cur_image_size / s->param->line_size);
+                       s->cur_image_size / s->param->line_size));
                   if ((s->cur_image_size % s->param->line_size) != 0)
                     {
-                      pixma_dbg (1,
-                     "BUG:received data not multiple of line_size\n");
+                      PDBG (pixma_dbg (1,
+                           "BUG:received data not multiple of line_size\n"));
                     }
                 }
               if ((s->cur_image_size < s->param->image_size) && !s->param->mode_jpeg)

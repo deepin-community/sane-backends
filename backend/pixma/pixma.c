@@ -899,7 +899,7 @@ print_scan_param (int level, const pixma_scan_param_t * sp)
   pixma_dbg (level, "  dpi=%ux%u offset=(%u,%u) dimension=%ux%u\n",
 	     sp->xdpi, sp->ydpi, sp->x, sp->y, sp->w, sp->h);
   pixma_dbg (level, "  gamma=%f gamma_table=%p source=%d\n", sp->gamma,
-       sp->gamma_table, sp->source);
+             (void *) sp->gamma_table, sp->source);
   pixma_dbg (level, "  adf-wait=%d\n", sp->adf_wait);
 }
 #endif
@@ -1661,7 +1661,7 @@ sane_init (SANE_Int * version_code, SANE_Auth_Callback authorize)
   if (!version_code)
     return SANE_STATUS_INVAL;
   myversion = 100 * PIXMA_VERSION_MAJOR + PIXMA_VERSION_MINOR;
-  *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, myversion);
+  *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, myversion);
   DBG_INIT ();
   sanei_thread_init ();
   pixma_set_debug_level (DBG_LEVEL);

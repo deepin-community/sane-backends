@@ -28,6 +28,105 @@
 ; Canon MFP2 conf file
 ;
 
+; ---- V440 --------------------------
+
+:model "TS2400 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x1108"
+:status :untested
+:comment "Testers needed!"
+
+:model "TS2600 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x1107"
+:status :untested
+:comment "Testers needed!"
+
+
+; ---- V420 --------------------------
+:model "TS5350i series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18d9"
+:status :untested
+:comment "Testers needed!"
+
+:model "G600 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18d5"
+:status :untested
+:comment "Testers needed!"
+
+:model "TS3500 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18d4"
+:status :untested
+:comment "Testers needed!"
+
+:model "TR4600 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18da"
+:status :untested
+:comment "Testers needed!"
+
+:model "E4500 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18db"
+:status :untested
+:comment "Testers needed!"
+
+:model "TR4700 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18dc"
+:status :untested
+:comment "Testers needed!"
+
+:model "XK500 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18df"
+:status :untested
+:comment "Testers needed!"
+
+:model "TS8530 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18e0"
+:status :untested
+:comment "Testers needed!"
+
+:model "XK100 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18e2"
+:status :untested
+:comment "Testers needed!"
+
+:model "TS7530 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18e1"
+:status :untested
+:comment "Testers needed!"
+
+:model "TS7450i series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18f7"
+:status :untested
+:comment "Testers needed!"
+
+
+; ---- V420 --------------------------
+:model "GX6000 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x0153"
+:status :good
+
+:model "GX7000 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x0157"
+:status :good
+
+:model "TS5400 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x0151"
+:status :good
+
 ; ---- V410 --------------------------
 :model "TS3400 series"
 :interface "USB WiFi"
@@ -466,6 +565,11 @@
 
 
 ; ---- V310 --------------------------
+:model "MX455 series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x1768"
+:status :good
+
 :model "MX490 series"
 :interface "USB WiFi"
 :usbid "0x04a9" "0x1787"

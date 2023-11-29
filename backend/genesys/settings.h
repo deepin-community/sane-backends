@@ -16,27 +16,6 @@
 
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-   As a special exception, the authors of SANE give permission for
-   additional uses of the libraries contained in this release of SANE.
-
-   The exception is that, if you link a SANE library with other files
-   to produce an executable, this does not by itself cause the
-   resulting executable to be covered by the GNU General Public
-   License.  Your use of that executable is in no way restricted on
-   account of linking the SANE library code into it.
-
-   This exception does not, however, invalidate any other reasons why
-   the executable file might be covered by the GNU General Public
-   License.
-
-   If you submit changes to SANE to the maintainers to be included in
-   a subsequent release, you agree by submitting the changes that
-   those changes may be distributed with this exception intact.
-
-   If you write modifications of your own for SANE, it is your choice
-   whether to permit this exception to apply to your modifications.
-   If you do not wish that, delete this exception notice.
 */
 
 #ifndef BACKEND_GENESYS_SETTINGS_H
@@ -76,9 +55,6 @@ struct Genesys_Settings
 
     ColorFilter color_filter = ColorFilter::NONE;
 
-    // true if scan is true gray, false if monochrome scan
-    int true_gray = 0;
-
     // value for contrast enhancement in the [-100..100] range
     int contrast = 0;
 
@@ -102,6 +78,7 @@ std::ostream& operator<<(std::ostream& out, const Genesys_Settings& settings);
 struct SetupParams {
 
     static constexpr unsigned NOT_SET = std::numeric_limits<unsigned>::max();
+    static constexpr unsigned NOT_SET_I = std::numeric_limits<int>::max();
 
     // resolution in x direction
     unsigned xres = NOT_SET;
@@ -136,6 +113,10 @@ struct SetupParams {
 
     ColorFilter color_filter = static_cast<ColorFilter>(NOT_SET);
 
+    // the values for contrast and brightness adjustment in the range of [-100..100]
+    int contrast_adjustment = NOT_SET_I;
+    int brightness_adjustment = NOT_SET_I;
+
     ScanFlag flags = ScanFlag::NONE;
 
     unsigned get_requested_pixels() const
@@ -152,7 +133,8 @@ struct SetupParams {
             pixels == NOT_SET || lines == NOT_SET ||depth == NOT_SET || channels == NOT_SET ||
             scan_method == static_cast<ScanMethod>(NOT_SET) ||
             scan_mode == static_cast<ScanColorMode>(NOT_SET) ||
-            color_filter == static_cast<ColorFilter>(NOT_SET))
+            color_filter == static_cast<ColorFilter>(NOT_SET) ||
+            contrast_adjustment == NOT_SET_I || brightness_adjustment == NOT_SET_I)
         {
             throw std::runtime_error("SetupParams are not valid");
         }
@@ -172,6 +154,8 @@ struct SetupParams {
             scan_method == other.scan_method &&
             scan_mode == other.scan_mode &&
             color_filter == other.color_filter &&
+            contrast_adjustment == other.contrast_adjustment &&
+            brightness_adjustment == other.brightness_adjustment &&
             flags == other.flags;
     }
 };
@@ -193,6 +177,8 @@ void serialize(Stream& str, SetupParams& x)
     serialize(str, x.scan_method);
     serialize(str, x.scan_mode);
     serialize(str, x.color_filter);
+    serialize(str, x.contrast_adjustment);
+    serialize(str, x.brightness_adjustment);
     serialize(str, x.flags);
 }
 
@@ -317,6 +303,9 @@ struct ScanSession {
     // whether calibration should be performed host-side
     bool use_host_side_calib = false;
 
+    // whether gray scanning should be performed host-side (scan as color and merge to gray)
+    bool use_host_side_gray = false;
+
     void assert_computed() const
     {
         if (!computed) {
@@ -368,6 +357,7 @@ void serialize(Stream& str, ScanSession& x)
     serialize(str, x.buffer_size_read);
     serialize(str, x.enable_ledadd);
     serialize(str, x.use_host_side_calib);
+    serialize(str, x.use_host_side_gray);
 }
 
 std::ostream& operator<<(std::ostream& out, const SANE_Parameters& params);

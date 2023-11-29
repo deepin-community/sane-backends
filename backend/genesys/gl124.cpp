@@ -17,27 +17,6 @@
 
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-   As a special exception, the authors of SANE give permission for
-   additional uses of the libraries contained in this release of SANE.
-
-   The exception is that, if you link a SANE library with other files
-   to produce an executable, this does not by itself cause the
-   resulting executable to be covered by the GNU General Public
-   License.  Your use of that executable is in no way restricted on
-   account of linking the SANE library code into it.
-
-   This exception does not, however, invalidate any other reasons why
-   the executable file might be covered by the GNU General Public
-   License.
-
-   If you submit changes to SANE to the maintainers to be included in
-   a subsequent release, you agree by submitting the changes that
-   those changes may be distributed with this exception intact.
-
-   If you write modifications of your own for SANE, it is your choice
-   whether to permit this exception to apply to your modifications.
-   If you do not wish that, delete this exception notice.
 */
 
 #define DEBUG_DECLARE_ONLY
@@ -113,7 +92,7 @@ gl124_init_registers (Genesys_Device * dev)
     dev->reg.init_reg(0x09, 0x00);
     dev->reg.init_reg(0x0a, 0xc0);
     dev->reg.init_reg(0x0b, 0x2a);
-    dev->reg.init_reg(0x0c, 0x12);
+    dev->reg.init_reg(0x0c, 0x12); // SENSOR_DEF
     dev->reg.init_reg(0x11, 0x00);
     dev->reg.init_reg(0x12, 0x00);
     dev->reg.init_reg(0x13, 0x0f);
@@ -376,7 +355,7 @@ gl124_init_registers (Genesys_Device * dev)
  * @param dev device owning the AFE
  * @param set flag AFE_INIT to specify the AFE must be reset before writing data
  * */
-static void gl124_set_ti_fe(Genesys_Device* dev, uint8_t set)
+static void gl124_set_ti_fe(Genesys_Device* dev, std::uint8_t set)
 {
     DBG_HELPER(dbg);
   int i;
@@ -388,9 +367,8 @@ static void gl124_set_ti_fe(Genesys_Device* dev, uint8_t set)
     // start writing to DAC
     dev->interface->write_fe_register(0x00, 0x80);
 
-  /* write values to analog frontend */
-  for (uint16_t addr = 0x01; addr < 0x04; addr++)
-    {
+    // write values to analog frontend
+    for (std::uint16_t addr = 0x01; addr < 0x04; addr++) {
         dev->interface->write_fe_register(addr, dev->frontend.regs.get_value(addr));
     }
 
@@ -413,13 +391,14 @@ static void gl124_set_ti_fe(Genesys_Device* dev, uint8_t set)
 
 
 // Set values of analog frontend
-void CommandSetGl124::set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor, uint8_t set) const
+void CommandSetGl124::set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor,
+                             std::uint8_t set) const
 {
     DBG_HELPER_ARGS(dbg, "%s", set == AFE_INIT ? "init" :
                                set == AFE_SET ? "set" :
                                set == AFE_POWER_SAVE ? "powersave" : "huh?");
     (void) sensor;
-  uint8_t val;
+    std::uint8_t val;
 
     if (set == AFE_INIT) {
         dev->frontend = dev->frontend_initial;
@@ -453,10 +432,9 @@ static void gl124_init_motor_regs_scan(Genesys_Device* dev,
                                        ScanFlag flags)
 {
     DBG_HELPER(dbg);
-  int use_fast_fed;
   unsigned int lincnt, fast_dpi;
   unsigned int feedl,dist;
-  uint32_t z1, z2;
+    std::uint32_t z1, z2;
     unsigned yres;
     unsigned min_speed;
   unsigned int linesel;
@@ -466,9 +444,6 @@ static void gl124_init_motor_regs_scan(Genesys_Device* dev,
         scan_yres, static_cast<unsigned>(motor_profile.step_type), scan_lines, scan_dummy,
         feed_steps, static_cast<unsigned>(scan_mode),
         static_cast<unsigned>(flags));
-
-  /* we never use fast fed since we do manual feed for the scans */
-  use_fast_fed=0;
 
   /* enforce motor minimal scan speed
    * @TODO extend motor struct for this value */
@@ -514,13 +489,7 @@ static void gl124_init_motor_regs_scan(Genesys_Device* dev,
     reg->set24(REG_LINCNT, lincnt);
 
   /* compute register 02 value */
-    uint8_t r02 = REG_0x02_NOTHOME;
-
-    if (use_fast_fed) {
-        r02 |= REG_0x02_FASTFED;
-    } else {
-        r02 &= ~REG_0x02_FASTFED;
-    }
+    std::uint8_t r02 = REG_0x02_NOTHOME;
 
     if (has_flag(flags, ScanFlag::AUTO_GO_HOME)) {
         r02 |= REG_0x02_AGOHOME;
@@ -573,9 +542,6 @@ static void gl124_init_motor_regs_scan(Genesys_Device* dev,
     if (has_flag(flags, ScanFlag::FEEDING)) {
         dist *= 2;
     }
-    if (use_fast_fed) {
-        dist += fast_table.table.size() * 2;
-    }
 
   /* get sure we don't use insane value */
     if (dist < feedl) {
@@ -587,7 +553,7 @@ static void gl124_init_motor_regs_scan(Genesys_Device* dev,
     reg->set24(REG_FEEDL, feedl);
 
   /* doesn't seem to matter that much */
-    sanei_genesys_calculate_zmod(use_fast_fed,
+    sanei_genesys_calculate_zmod(false,
 				  scan_exposure_time,
                                  scan_table.table,
                                  scan_table.table.size(),
@@ -612,7 +578,6 @@ static void gl124_init_optical_regs_scan(Genesys_Device* dev, const Genesys_Sens
                                          const ScanSession& session)
 {
     DBG_HELPER_ARGS(dbg, "exposure_time=%d", exposure_time);
-  uint32_t expmax;
 
     scanner_setup_sensor(*dev, sensor, *reg);
 
@@ -693,7 +658,7 @@ static void gl124_init_optical_regs_scan(Genesys_Device* dev, const Genesys_Sens
         reg->find_reg(REG_0x60).value &= ~REG_0x60_LEDADD;
         if (session.enable_ledadd) {
             reg->find_reg(REG_0x60).value |= REG_0x60_LEDADD;
-            expmax = reg->get24(REG_EXPR);
+            std::uint32_t expmax = reg->get24(REG_EXPR);
             expmax = std::max(expmax, reg->get24(REG_EXPG));
             expmax = std::max(expmax, reg->get24(REG_EXPB));
 
@@ -779,7 +744,7 @@ void CommandSetGl124::init_regs_for_scan_session(Genesys_Device* dev, const Gene
     dev->session = session;
 
     dev->total_bytes_read = 0;
-    dev->total_bytes_to_read = session.output_line_bytes_requested * session.params.lines;
+    dev->total_bytes_to_read = (size_t)session.output_line_bytes_requested * (size_t)session.params.lines;
 
     DBG(DBG_info, "%s: total bytes to send to frontend = %zu\n", __func__,
         dev->total_bytes_to_read);
@@ -815,6 +780,8 @@ ScanSession CommandSetGl124::calculate_scan_session(const Genesys_Device* dev,
     session.params.scan_method = settings.scan_method;
     session.params.scan_mode = settings.scan_mode;
     session.params.color_filter = settings.color_filter;
+    session.params.contrast_adjustment = dev->settings.contrast;
+    session.params.brightness_adjustment = dev->settings.brightness;
     session.params.flags = ScanFlag::NONE;
 
     compute_session(dev, session, sensor);
@@ -858,7 +825,7 @@ void gl124_setup_scan_gpio(Genesys_Device* dev, int resolution)
 {
     DBG_HELPER(dbg);
 
-    uint8_t val = dev->interface->read_register(REG_0x32);
+    std::uint8_t val = dev->interface->read_register(REG_0x32);
 
   /* LiDE 110, 210 and 220 cases */
     if(dev->model->gpio_id != GpioId::CANON_LIDE_120) {
@@ -915,7 +882,7 @@ void CommandSetGl124::begin_scan(Genesys_Device* dev, const Genesys_Sensor& sens
     scanner_clear_scan_and_feed_counts(*dev);
 
     // enable scan and motor
-    uint8_t val = dev->interface->read_register(REG_0x01);
+    std::uint8_t val = dev->interface->read_register(REG_0x01);
     val |= REG_0x01_SCAN;
     dev->interface->write_register(REG_0x01, val);
 
@@ -983,6 +950,8 @@ void CommandSetGl124::init_regs_for_shading(Genesys_Device* dev, const Genesys_S
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = ColorFilter::RED;
+    session.params.contrast_adjustment = dev->settings.contrast;
+    session.params.brightness_adjustment = dev->settings.brightness;
     session.params.flags = ScanFlag::DISABLE_SHADING |
                            ScanFlag::DISABLE_GAMMA |
                            ScanFlag::DISABLE_BUFFER_FULL_MOVE;
@@ -1004,7 +973,7 @@ void CommandSetGl124::wait_for_motor_stop(Genesys_Device* dev) const
     DBG_HELPER(dbg);
 
     auto status = scanner_read_status(*dev);
-    uint8_t val40 = dev->interface->read_register(REG_0x100);
+    std::uint8_t val40 = dev->interface->read_register(REG_0x100);
 
     if (!status.is_motor_enabled && (val40 & REG_0x100_MOTMFLG) == 0) {
         return;
@@ -1027,7 +996,7 @@ void CommandSetGl124::send_shading_data(Genesys_Device* dev, const Genesys_Senso
 {
     DBG_HELPER_ARGS(dbg, "writing %d bytes of shading data", size);
     std::uint32_t addr, length, segcnt, pixels, i;
-    uint8_t *ptr, *src;
+    std::uint8_t *ptr, *src;
 
   /* logical size of a color as seen by generic code of the frontend */
     length = size / 3;
@@ -1050,7 +1019,7 @@ void CommandSetGl124::send_shading_data(Genesys_Device* dev, const Genesys_Senso
                                      std::to_string(dev->session.segment_count));
 
   DBG( DBG_io2, "%s: using chunks of %d bytes (%d shading data pixels)\n",__func__,length, length/4);
-    std::vector<uint8_t> buffer(pixels * dev->session.segment_count, 0);
+    std::vector<std::uint8_t> buffer(pixels * dev->session.segment_count, 0);
 
   /* write actual red data */
   for(i=0;i<3;i++)
@@ -1077,7 +1046,7 @@ void CommandSetGl124::send_shading_data(Genesys_Device* dev, const Genesys_Senso
           /* next shading coefficient */
           ptr+=4;
         }
-        uint8_t val = dev->interface->read_register(0xd0+i);
+        std::uint8_t val = dev->interface->read_register(0xd0+i);
       addr = val * 8192 + 0x10000000;
         dev->interface->write_ahb(addr, pixels * dev->session.segment_count, buffer.data());
     }
@@ -1116,6 +1085,8 @@ void move_to_calibration_area(Genesys_Device* dev, const Genesys_Sensor& sensor,
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = dev->settings.color_filter;
+    session.params.contrast_adjustment = dev->settings.contrast;
+    session.params.brightness_adjustment = dev->settings.brightness;
     session.params.flags = ScanFlag::DISABLE_SHADING |
                            ScanFlag::DISABLE_GAMMA |
                            ScanFlag::SINGLE_LINE |
@@ -1202,6 +1173,8 @@ void CommandSetGl124::init_regs_for_warmup(Genesys_Device* dev, const Genesys_Se
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = dev->settings.color_filter;
+    session.params.contrast_adjustment = dev->settings.contrast;
+    session.params.brightness_adjustment = dev->settings.brightness;
     session.params.flags = flags;
 
     compute_session(dev, session, sensor);
@@ -1280,7 +1253,7 @@ void CommandSetGl124::asic_boot(Genesys_Device* dev, bool cold) const
     dev->interface->write_register(0x36, 0x01);
 
     // set GPIO 17
-    uint8_t val = dev->interface->read_register(0x33);
+    std::uint8_t val = dev->interface->read_register(0x33);
     val |= 0x01;
     dev->interface->write_register(0x33, val);
 
@@ -1323,7 +1296,7 @@ void CommandSetGl124::update_hardware_sensors(Genesys_Scanner* s) const
      any of them.
    */
     DBG_HELPER(dbg);
-    uint8_t val = s->dev->interface->read_register(REG_0x31);
+    std::uint8_t val = s->dev->interface->read_register(REG_0x31);
 
   /* TODO : for the next scanner special case,
    * add another per scanner button profile struct to avoid growing

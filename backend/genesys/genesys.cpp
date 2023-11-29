@@ -29,27 +29,6 @@
 
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-   As a special exception, the authors of SANE give permission for
-   additional uses of the libraries contained in this release of SANE.
-
-   The exception is that, if you link a SANE library with other files
-   to produce an executable, this does not by itself cause the
-   resulting executable to be covered by the GNU General Public
-   License.  Your use of that executable is in no way restricted on
-   account of linking the SANE library code into it.
-
-   This exception does not, however, invalidate any other reasons why
-   the executable file might be covered by the GNU General Public
-   License.
-
-   If you submit changes to SANE to the maintainers to be included in
-   a subsequent release, you agree by submitting the changes that
-   those changes may be distributed with this exception intact.
-
-   If you write modifications of your own for SANE, it is your choice
-   whether to permit this exception to apply to your modifications.
-   If you do not wish that, delete this exception notice.
 */
 
 /*
@@ -331,9 +310,8 @@ void sanei_genesys_init_structs (Genesys_Device * dev)
  * @param gamma gamma to compute values
  * @return a gamma table filled with the computed values
  * */
-void
-sanei_genesys_create_gamma_table (std::vector<uint16_t>& gamma_table, int size,
-                                  float maximum, float gamma_max, float gamma)
+void sanei_genesys_create_gamma_table(std::vector<std::uint16_t>& gamma_table, int size,
+                                      float maximum, float gamma_max, float gamma)
 {
     gamma_table.clear();
     gamma_table.resize(size, 0);
@@ -355,7 +333,7 @@ sanei_genesys_create_gamma_table (std::vector<uint16_t>& gamma_table, int size,
 }
 
 void sanei_genesys_create_default_gamma_table(Genesys_Device* dev,
-                                              std::vector<uint16_t>& gamma_table, float gamma)
+                                              std::vector<std::uint16_t>& gamma_table, float gamma)
 {
     int size = 0;
     int max = 0;
@@ -367,6 +345,7 @@ void sanei_genesys_create_default_gamma_table(Genesys_Device* dev,
         }
         max = size - 1;
     } else if (dev->model->asic_type == AsicType::GL124 ||
+               dev->model->asic_type == AsicType::GL845 ||
                dev->model->asic_type == AsicType::GL846 ||
                dev->model->asic_type == AsicType::GL847) {
         size = 257;
@@ -417,7 +396,7 @@ SANE_Int sanei_genesys_exposure_time2(Genesys_Device * dev, const MotorProfile& 
    The data needs to be of size "size", and in little endian byte order.
  */
 static void genesys_send_offset_and_shading(Genesys_Device* dev, const Genesys_Sensor& sensor,
-                                            uint8_t* data, int size)
+                                            std::uint8_t* data, int size)
 {
     DBG_HELPER_ARGS(dbg, "(size = %d)", size);
   int start_address;
@@ -448,10 +427,10 @@ void sanei_genesys_init_shading_data(Genesys_Device* dev, const Genesys_Sensor& 
 
     unsigned channels = dev->settings.get_channels();
 
-  // 16 bit black, 16 bit white
-  std::vector<uint8_t> shading_data(pixels_per_line * 4 * channels, 0);
+    // 16 bit black, 16 bit white
+    std::vector<std::uint8_t> shading_data(pixels_per_line * 4 * channels, 0);
 
-  uint8_t* shading_data_ptr = shading_data.data();
+    std::uint8_t* shading_data_ptr = shading_data.data();
 
     for (unsigned i = 0; i < pixels_per_line * channels; i++) {
       *shading_data_ptr++ = 0x00;	/* dark lo */
@@ -508,7 +487,7 @@ void scanner_clear_scan_and_feed_counts(Genesys_Device& dev)
 }
 
 void scanner_send_slope_table(Genesys_Device* dev, const Genesys_Sensor& sensor, unsigned table_nr,
-                              const std::vector<uint16_t>& slope_table)
+                              const std::vector<std::uint16_t>& slope_table)
 {
     DBG_HELPER_ARGS(dbg, "table_nr = %d, steps = %zu", table_nr, slope_table.size());
 
@@ -536,7 +515,7 @@ void scanner_send_slope_table(Genesys_Device* dev, const Genesys_Sensor& sensor,
         throw SaneException("invalid table number %d", table_nr);
     }
 
-    std::vector<uint8_t> table;
+    std::vector<std::uint8_t> table;
     table.reserve(slope_table.size() * 2);
     for (std::size_t i = 0; i < slope_table.size(); i++) {
         table.push_back(slope_table[i] & 0xff);
@@ -674,9 +653,9 @@ void scanner_setup_sensor(Genesys_Device& dev, const Genesys_Sensor& sensor,
         regs.set8(custom_reg.address, custom_reg.value);
     }
 
-    if (dev.model->asic_type != AsicType::GL841 &&
-        dev.model->asic_type != AsicType::GL843)
+    if (dev.model->asic_type != AsicType::GL843)
     {
+        // FIXME: remove the above check
         regs_set_exposure(dev.model->asic_type, regs, sensor.exposure);
     }
 
@@ -795,6 +774,8 @@ void scanner_move(Genesys_Device& dev, ScanMethod scan_method, unsigned steps, D
     session.params.scan_method = scan_method;
     session.params.scan_mode = ScanColorMode::GRAY;
     session.params.color_filter = ColorFilter::GREEN;
+    session.params.contrast_adjustment = dev.settings.contrast;
+    session.params.brightness_adjustment = dev.settings.brightness;
 
     session.params.flags = ScanFlag::DISABLE_SHADING |
                            ScanFlag::DISABLE_GAMMA |
@@ -959,6 +940,8 @@ void scanner_move_back_home(Genesys_Device& dev, bool wait_until_home)
     session.params.scan_method = dev.settings.scan_method;
     session.params.scan_mode = ScanColorMode::GRAY;
     session.params.color_filter = ColorFilter::GREEN;
+    session.params.contrast_adjustment = dev.settings.contrast;
+    session.params.brightness_adjustment = dev.settings.brightness;
 
     session.params.flags =  ScanFlag::DISABLE_SHADING |
                             ScanFlag::DISABLE_GAMMA |
@@ -1100,6 +1083,8 @@ void scanner_move_back_home_ta(Genesys_Device& dev)
     session.params.scan_method = scan_method;
     session.params.scan_mode = ScanColorMode::GRAY;
     session.params.color_filter = ColorFilter::GREEN;
+    session.params.contrast_adjustment = dev.settings.contrast;
+    session.params.brightness_adjustment = dev.settings.brightness;
 
     session.params.flags =  ScanFlag::DISABLE_SHADING |
                             ScanFlag::DISABLE_GAMMA |
@@ -1210,6 +1195,8 @@ void scanner_search_strip(Genesys_Device& dev, bool forward, bool black)
     session.params.scan_method = dev.settings.scan_method;
     session.params.scan_mode = ScanColorMode::GRAY;
     session.params.color_filter = ColorFilter::RED;
+    session.params.contrast_adjustment = dev.settings.contrast;
+    session.params.brightness_adjustment = dev.settings.brightness;
     session.params.flags = ScanFlag::DISABLE_SHADING |
                            ScanFlag::DISABLE_GAMMA;
     if (dev.model->asic_type != AsicType::GL841 && !forward) {
@@ -1506,6 +1493,8 @@ void scanner_offset_calibration(Genesys_Device& dev, const Genesys_Sensor& senso
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = dev.model->asic_type == AsicType::GL843 ? ColorFilter::RED
                                                                           : dev.settings.color_filter;
+    session.params.contrast_adjustment = dev.settings.contrast;
+    session.params.brightness_adjustment = dev.settings.brightness;
     session.params.flags = flags;
     compute_session(&dev, session, *calib_sensor);
 
@@ -1815,6 +1804,8 @@ void scanner_coarse_gain_calibration(Genesys_Device& dev, const Genesys_Sensor& 
     session.params.scan_method = dev.settings.scan_method;
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = dev.settings.color_filter;
+    session.params.contrast_adjustment = dev.settings.contrast;
+    session.params.brightness_adjustment = dev.settings.brightness;
     session.params.flags = flags;
     compute_session(&dev, session, *calib_sensor);
 
@@ -1873,10 +1864,11 @@ void scanner_coarse_gain_calibration(Genesys_Device& dev, const Genesys_Sensor& 
         float curr_output = 0;
         float target_value = 0;
 
-        if (dev.model->asic_type == AsicType::GL842 ||
+        if (dev.model->asic_type == AsicType::GL841 ||
+            dev.model->asic_type == AsicType::GL842 ||
             dev.model->asic_type == AsicType::GL843)
         {
-            std::vector<uint16_t> values;
+            std::vector<std::uint16_t> values;
             // FIXME: start from the second line because the first line often has artifacts. Probably
             // caused by unclean cleanup of previous scan
             for (std::size_t x = pixels / 4; x < (pixels * 3 / 4); x++) {
@@ -1889,18 +1881,6 @@ void scanner_coarse_gain_calibration(Genesys_Device& dev, const Genesys_Sensor& 
             curr_output = static_cast<float>(values[unsigned((values.size() - 1) * 0.95)]);
             target_value = calib_sensor->gain_white_ref * coeff;
 
-        } else if (dev.model->asic_type == AsicType::GL841) {
-            // FIXME: use the GL843 approach
-            unsigned max = 0;
-            for (std::size_t x = 0; x < image.get_width(); x++) {
-                auto value = image.get_raw_channel(x, 0, ch);
-                if (value > max) {
-                    max = value;
-                }
-            }
-
-            curr_output = max;
-            target_value = 65535.0f;
         } else {
             // FIXME: use the GL843 approach
             auto width = image.get_width();
@@ -1998,7 +1978,8 @@ SensorExposure scanner_led_calibration(Genesys_Device& dev, const Genesys_Sensor
     const auto& calib_sensor = sanei_genesys_find_sensor(&dev, resolution, channels,
                                                          dev.settings.scan_method);
 
-    if (dev.model->asic_type == AsicType::GL845 ||
+    if (dev.model->asic_type == AsicType::GL841 ||
+        dev.model->asic_type == AsicType::GL845 ||
         dev.model->asic_type == AsicType::GL846 ||
         dev.model->asic_type == AsicType::GL847 ||
         dev.model->asic_type == AsicType::GL124)
@@ -2006,14 +1987,9 @@ SensorExposure scanner_led_calibration(Genesys_Device& dev, const Genesys_Sensor
         regs = dev.reg; // FIXME: apply this to all ASICs
     }
 
-    unsigned yres = resolution;
-    if (dev.model->asic_type == AsicType::GL841) {
-        yres = dev.settings.yres; // FIXME: remove this
-    }
-
     ScanSession session;
     session.params.xres = resolution;
-    session.params.yres = yres;
+    session.params.yres = resolution;
     session.params.startx = 0;
     session.params.starty = 0;
     session.params.pixels = dev.model->x_size_calib_mm * resolution / MM_PER_INCH;
@@ -2023,6 +1999,8 @@ SensorExposure scanner_led_calibration(Genesys_Device& dev, const Genesys_Sensor
     session.params.scan_method = dev.settings.scan_method;
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = dev.settings.color_filter;
+    session.params.contrast_adjustment = dev.settings.contrast;
+    session.params.brightness_adjustment = dev.settings.brightness;
     session.params.flags = ScanFlag::DISABLE_SHADING |
                            ScanFlag::DISABLE_GAMMA |
                            ScanFlag::SINGLE_LINE |
@@ -2032,26 +2010,13 @@ SensorExposure scanner_led_calibration(Genesys_Device& dev, const Genesys_Sensor
 
     dev.cmd_set->init_regs_for_scan_session(&dev, calib_sensor, &regs, session);
 
-    if (dev.model->asic_type == AsicType::GL841) {
-        dev.interface->write_registers(regs); // FIXME: remove this
-    }
-
     std::uint16_t exp[3];
 
-    if (dev.model->asic_type == AsicType::GL841) {
-        exp[0] = sensor.exposure.red;
-        exp[1] = sensor.exposure.green;
-        exp[2] = sensor.exposure.blue;
-    } else {
-        exp[0] = calib_sensor.exposure.red;
-        exp[1] = calib_sensor.exposure.green;
-        exp[2] = calib_sensor.exposure.blue;
-    }
+    exp[0] = calib_sensor.exposure.red;
+    exp[1] = calib_sensor.exposure.green;
+    exp[2] = calib_sensor.exposure.blue;
 
     std::uint16_t target = sensor.gain_white_ref * 256;
-
-    std::uint16_t min_exposure = 500; // only gl841
-    std::uint16_t max_exposure = ((exp[0] + exp[1] + exp[2]) / 3) * 2; // only gl841
 
     std::uint16_t top[3] = {};
     std::uint16_t bottom[3] = {};
@@ -2088,16 +2053,6 @@ SensorExposure scanner_led_calibration(Genesys_Device& dev, const Genesys_Sensor
     for (unsigned i_test = 0; i_test < 100 && !acceptable; ++i_test) {
         regs_set_exposure(dev.model->asic_type, regs, { exp[0], exp[1], exp[2] });
 
-        if (dev.model->asic_type == AsicType::GL841) {
-            // FIXME: remove
-            dev.interface->write_register(0x10, (exp[0] >> 8) & 0xff);
-            dev.interface->write_register(0x11, exp[0] & 0xff);
-            dev.interface->write_register(0x12, (exp[1] >> 8) & 0xff);
-            dev.interface->write_register(0x13, exp[1] & 0xff);
-            dev.interface->write_register(0x14, (exp[2] >> 8) & 0xff);
-            dev.interface->write_register(0x15, exp[2] & 0xff);
-        }
-
         dev.interface->write_registers(regs);
 
         dbg.log(DBG_info, "starting line reading");
@@ -2108,15 +2063,13 @@ SensorExposure scanner_led_calibration(Genesys_Device& dev, const Genesys_Sensor
             if (dev.model->asic_type == AsicType::GL841) {
                 scanner_stop_action(dev);
                 dev.cmd_set->move_back_home(&dev, true);
-                return { exp[0], exp[1], exp[2] };
             } else if (dev.model->asic_type == AsicType::GL124) {
                 scanner_stop_action(dev);
-                return calib_sensor.exposure;
             } else {
                 scanner_stop_action(dev);
                 dev.cmd_set->move_back_home(&dev, true);
-                return calib_sensor.exposure;
             }
+            return { exp[0], exp[1], exp[2] };
         }
 
         auto image = read_unshuffled_image_from_scanner(&dev, session, session.output_line_bytes);
@@ -2142,57 +2095,8 @@ SensorExposure scanner_led_calibration(Genesys_Device& dev, const Genesys_Sensor
 
         acceptable = true;
 
-        if (dev.model->asic_type == AsicType::GL841) {
-            if (avg[0] < avg[1] * 0.95 || avg[1] < avg[0] * 0.95 ||
-                avg[0] < avg[2] * 0.95 || avg[2] < avg[0] * 0.95 ||
-                avg[1] < avg[2] * 0.95 || avg[2] < avg[1] * 0.95)
-            {
-                acceptable = false;
-            }
-
-            // led exposure is not acceptable if white level is too low.
-            // ~80 hardcoded value for white level
-            if (avg[0] < 20000 || avg[1] < 20000 || avg[2] < 20000) {
-                acceptable = false;
-            }
-
-            // for scanners using target value
-            if (target > 0) {
-                acceptable = true;
-                for (unsigned i = 0; i < 3; i++) {
-                    // we accept +- 2% delta from target
-                    if (std::abs(avg[i] - target) > target / 50) {
-                        exp[i] = (exp[i] * target) / avg[i];
-                        acceptable = false;
-                    }
-                }
-            } else {
-                if (!acceptable) {
-                    unsigned avga = (avg[0] + avg[1] + avg[2]) / 3;
-                    exp[0] = (exp[0] * avga) / avg[0];
-                    exp[1] = (exp[1] * avga) / avg[1];
-                    exp[2] = (exp[2] * avga) / avg[2];
-                    /*  Keep the resulting exposures below this value. Too long exposure drives
-                        the ccd into saturation. We may fix this by relying on the fact that
-                        we get a striped scan without shading, by means of statistical calculation
-                    */
-                    unsigned avge = (exp[0] + exp[1] + exp[2]) / 3;
-
-                    if (avge > max_exposure) {
-                        exp[0] = (exp[0] * max_exposure) / avge;
-                        exp[1] = (exp[1] * max_exposure) / avge;
-                        exp[2] = (exp[2] * max_exposure) / avge;
-                    }
-                    if (avge < min_exposure) {
-                        exp[0] = (exp[0] * min_exposure) / avge;
-                        exp[1] = (exp[1] * min_exposure) / avge;
-                        exp[2] = (exp[2] * min_exposure) / avge;
-                    }
-
-                }
-            }
-        } else if (dev.model->asic_type == AsicType::GL845 ||
-                   dev.model->asic_type == AsicType::GL846)
+        if (dev.model->asic_type == AsicType::GL845 ||
+            dev.model->asic_type == AsicType::GL846)
         {
             for (unsigned i = 0; i < 3; i++) {
                 if (avg[i] < bottom[i]) {
@@ -2225,7 +2129,9 @@ SensorExposure scanner_led_calibration(Genesys_Device& dev, const Genesys_Sensor
                     acceptable = false;
                 }
             }
-        } else if (dev.model->asic_type == AsicType::GL124) {
+        } else if (dev.model->asic_type == AsicType::GL841 ||
+                   dev.model->asic_type == AsicType::GL124)
+        {
             for (unsigned i = 0; i < 3; i++) {
                 // we accept +- 2% delta from target
                 if (std::abs(avg[i] - target) > target / 50) {
@@ -2272,12 +2178,12 @@ SensorExposure scanner_led_calibration(Genesys_Device& dev, const Genesys_Sensor
 }
 
 void sanei_genesys_calculate_zmod(bool two_table,
-                                  uint32_t exposure_time,
-                                  const std::vector<uint16_t>& slope_table,
+                                  std::uint32_t exposure_time,
+                                  const std::vector<std::uint16_t>& slope_table,
                                   unsigned acceleration_steps,
                                   unsigned move_steps,
                                   unsigned buffer_acceleration_steps,
-                                  uint32_t* out_z1, uint32_t* out_z2)
+                                  std::uint32_t* out_z1, std::uint32_t* out_z2)
 {
     // acceleration total time
     unsigned sum = std::accumulate(slope_table.begin(), slope_table.begin() + acceleration_steps,
@@ -2327,7 +2233,7 @@ static void genesys_shading_calibration_impl(Genesys_Device* dev, const Genesys_
     debug_dump(DBG_info, dev->calib_session);
 
   size_t size;
-  uint32_t pixels_per_line;
+    std::uint32_t pixels_per_line;
 
     if (dev->model->asic_type == AsicType::GL842 ||
         dev->model->asic_type == AsicType::GL843 ||
@@ -2368,7 +2274,7 @@ static void genesys_shading_calibration_impl(Genesys_Device* dev, const Genesys_
         size = channels * 2 * pixels_per_line * (dev->calib_session.params.lines + 1);
     }
 
-  std::vector<uint16_t> calibration_data(size / 2);
+    std::vector<std::uint16_t> calibration_data(size / 2);
 
     // turn off motor and lamp power for flatbed scanners, but not for sheetfed scanners
     // because they have a calibration sheet with a sufficient black strip
@@ -2447,8 +2353,8 @@ static void genesys_shading_calibration_impl(Genesys_Device* dev, const Genesys_
 static void genesys_dark_shading_by_dummy_pixel(Genesys_Device* dev, const Genesys_Sensor& sensor)
 {
     DBG_HELPER(dbg);
-  uint32_t pixels_per_line;
-  uint32_t skip, xend;
+    std::uint32_t pixels_per_line;
+    std::uint32_t skip, xend;
   int dummy1, dummy2, dummy3;	/* dummy black average per channel */
 
     if (dev->model->asic_type == AsicType::GL842 ||
@@ -2672,11 +2578,9 @@ static void genesys_dark_white_shading_calibration(Genesys_Device* dev,
         dev->interface->write_registers(local_reg);
     }
 
-  size_t size;
-  uint32_t pixels_per_line;
+    std::size_t size;
+    std::uint32_t pixels_per_line;
   unsigned int x;
-  uint32_t dark, white, dark_sum, white_sum, dark_count, white_count, col,
-    dif;
 
     if (dev->model->asic_type == AsicType::GL842 ||
         dev->model->asic_type == AsicType::GL843)
@@ -2712,7 +2616,7 @@ static void genesys_dark_white_shading_calibration(Genesys_Device* dev,
         size = channels * 2 * pixels_per_line * dev->calib_session.params.lines;
     }
 
-  std::vector<uint8_t> calibration_data(size);
+    std::vector<std::uint8_t> calibration_data(size);
 
     // turn on motor and lamp power
     sanei_genesys_set_lamp_power(dev, sensor, local_reg, true);
@@ -2750,19 +2654,17 @@ static void genesys_dark_white_shading_calibration(Genesys_Device* dev,
     std::fill(dev->white_average_data.begin(),
               dev->white_average_data.begin() + start_offset * channels, 0);
 
-    uint16_t* average_white = dev->white_average_data.data() +
-                              start_offset * channels;
-    uint16_t* average_dark = dev->dark_average_data.data() +
-                             start_offset * channels;
+    std::uint16_t* average_white = dev->white_average_data.data() + start_offset * channels;
+    std::uint16_t* average_dark = dev->dark_average_data.data() + start_offset * channels;
 
   for (x = 0; x < pixels_per_line * channels; x++)
     {
-      dark = 0xffff;
-      white = 0;
+        std::uint32_t dark = 0xffff;
+        std::uint32_t white = 0;
 
             for (std::size_t y = 0; y < dev->calib_session.params.lines; y++)
 	{
-	  col = calibration_data[(x + y * pixels_per_line * channels) * 2];
+            std::uint32_t col = calibration_data[(x + y * pixels_per_line * channels) * 2];
 	  col |=
 	    calibration_data[(x + y * pixels_per_line * channels) * 2 +
 			     1] << 8;
@@ -2773,20 +2675,20 @@ static void genesys_dark_white_shading_calibration(Genesys_Device* dev,
 	    dark = col;
 	}
 
-      dif = white - dark;
+        std::uint32_t dif = white - dark;
 
       dark = dark + dif / 8;
       white = white - dif / 8;
 
-      dark_count = 0;
-      dark_sum = 0;
+        std::uint32_t dark_count = 0;
+        std::uint32_t dark_sum = 0;
 
-      white_count = 0;
-      white_sum = 0;
+        std::uint32_t white_count = 0;
+        std::uint32_t white_sum = 0;
 
             for (std::size_t y = 0; y < dev->calib_session.params.lines; y++)
 	{
-	  col = calibration_data[(x + y * pixels_per_line * channels) * 2];
+            std::uint32_t col = calibration_data[(x + y * pixels_per_line * channels) * 2];
 	  col |=
 	    calibration_data[(x + y * pixels_per_line * channels) * 2 +
 			     1] << 8;
@@ -2874,9 +2776,8 @@ compute_coefficient (unsigned int coeff, unsigned int target, unsigned int value
  * @param target_bright value of the white target code
  * @param target_dark value of the black target code
 */
-static void
-compute_averaged_planar (Genesys_Device * dev, const Genesys_Sensor& sensor,
-			 uint8_t * shading_data,
+static void compute_averaged_planar(Genesys_Device * dev, const Genesys_Sensor& sensor,
+                                    std::uint8_t* shading_data,
 			 unsigned int pixels_per_line,
 			 unsigned int words_per_color,
 			 unsigned int channels,
@@ -2946,7 +2847,8 @@ compute_averaged_planar (Genesys_Device * dev, const Genesys_Sensor& sensor,
     avgpixels = 15;
 
   /* LiDE80 packs shading data */
-    if (dev->model->sensor_id != SensorId::CIS_CANON_LIDE_80) {
+  if (dev->model->sensor_id != SensorId::CIS_CANON_LIDE_80)
+    {
       factor=1;
       fill=avgpixels;
     }
@@ -3055,7 +2957,7 @@ static std::array<unsigned, 3> color_order_to_cmat(ColorOrder color_order)
  * @param target value of the target code
  */
 static void compute_coefficients(Genesys_Device * dev,
-		      uint8_t * shading_data,
+                                 std::uint8_t* shading_data,
 		      unsigned int pixels_per_line,
 		      unsigned int channels,
                                  ColorOrder color_order,
@@ -3063,7 +2965,6 @@ static void compute_coefficients(Genesys_Device * dev,
 		      unsigned int coeff,
 		      unsigned int target)
 {
-  uint8_t *ptr;			/* contain 16bit words in little endian */
   unsigned int x, c;
   unsigned int val, br, dk;
   unsigned int start, end;
@@ -3089,7 +2990,8 @@ static void compute_coefficients(Genesys_Device * dev,
       for (x = start; x < end; x++)
 	{
 	  /* TODO if channels=1 , use filter to know the base addr */
-	  ptr = shading_data + 4 * ((x + offset) * channels + cmat[c]);
+            // contain 16bit words in little endian
+            std::uint8_t* ptr = shading_data + 4 * ((x + offset) * channels + cmat[c]);
 
         // dark data
         dk = dev->dark_average_data[x * channels + c];
@@ -3127,7 +3029,7 @@ static void compute_coefficients(Genesys_Device * dev,
  * @param target white target value
  */
 static void compute_planar_coefficients(Genesys_Device * dev,
-			     uint8_t * shading_data,
+                                        std::uint8_t* shading_data,
 			     unsigned int factor,
 			     unsigned int pixels_per_line,
 			     unsigned int words_per_color,
@@ -3137,22 +3039,20 @@ static void compute_planar_coefficients(Genesys_Device * dev,
 			     unsigned int coeff,
 			     unsigned int target)
 {
-  uint8_t *ptr;			/* contains 16bit words in little endian */
-  uint32_t x, c, i;
-  uint32_t val, dk, br;
+    std::uint32_t i;
+    std::uint32_t val, dk, br;
 
     auto cmat = color_order_to_cmat(color_order);
 
   DBG(DBG_io, "%s: factor=%d, pixels_per_line=%d, words=0x%X, coeff=0x%04x\n", __func__, factor,
       pixels_per_line, words_per_color, coeff);
-  for (c = 0; c < channels; c++)
-    {
+    for (unsigned c = 0; c < channels; c++) {
       /* shading data is larger than pixels_per_line so offset can be neglected */
-      for (x = 0; x < pixels_per_line; x+=factor)
-	{
+        for (unsigned x = 0; x < pixels_per_line; x += factor) {
 	  /* x2 because of 16 bit values, and x2 since one coeff for dark
 	   * and another for white */
-	  ptr = shading_data + words_per_color * cmat[c] * 2 + (x + offset) * 4;
+            // contains 16bit words in little endian
+            std::uint8_t* ptr = shading_data + words_per_color * cmat[c] * 2 + (x + offset) * 4;
 
 	  dk = 0;
 	  br = 0;
@@ -3168,9 +3068,8 @@ static void compute_planar_coefficients(Genesys_Device * dev,
 
 	  val = compute_coefficient (coeff, target, br - dk);
 
-	  /* we duplicate the information to have calibration data at optical resolution */
-	  for (i = 0; i < factor; i++)
-	    {
+            // we duplicate the information to have calibration data at optical resolution
+            for (unsigned i = 0; i < factor; i++) {
 	      ptr[0 + 4 * i] = dk & 255;
 	      ptr[1 + 4 * i] = dk / 256;
 	      ptr[2 + 4 * i] = val & 0xff;
@@ -3191,10 +3090,9 @@ static void compute_planar_coefficients(Genesys_Device * dev,
   }
 }
 
-static void
-compute_shifted_coefficients (Genesys_Device * dev,
-                              const Genesys_Sensor& sensor,
-			      uint8_t * shading_data,
+static void compute_shifted_coefficients(Genesys_Device * dev,
+                                         const Genesys_Sensor& sensor,
+                                         std::uint8_t* shading_data,
 			      unsigned int pixels_per_line,
 			      unsigned int channels,
                               ColorOrder color_order,
@@ -3206,7 +3104,7 @@ compute_shifted_coefficients (Genesys_Device * dev,
 {
   unsigned int x, avgpixels, basepixels, i, j, val1, val2;
   unsigned int br_tmp [3], dk_tmp [3];
-  uint8_t *ptr = shading_data + offset * 3 * 4;                 /* contain 16bit words in little endian */
+    std::uint8_t* ptr = shading_data + offset * 3 * 4; // contain 16bit words in little endian
   unsigned int patch_cnt = offset * 3;                          /* at start, offset of first patch */
 
     auto cmat = color_order_to_cmat(color_order);
@@ -3292,7 +3190,7 @@ static void genesys_send_shading_coefficient(Genesys_Device* dev, const Genesys_
         return;
     }
 
-  uint32_t pixels_per_line;
+    std::uint32_t pixels_per_line;
   int o;
   unsigned int length;		/**> number of shading calibration data words */
   unsigned int factor;
@@ -3349,8 +3247,8 @@ static void genesys_send_shading_coefficient(Genesys_Device* dev, const Genesys_
   length = words_per_color * 3 * 2;
 
   /* allocate computed size */
-  // contains 16bit words in little endian
-  std::vector<uint8_t> shading_data(length, 0);
+    // contains 16bit words in little endian
+    std::vector<std::uint8_t> shading_data(length, 0);
 
     if (!dev->calib_session.computed) {
         genesys_send_offset_and_shading(dev, sensor, shading_data.data(), length);
@@ -3678,7 +3576,7 @@ static void genesys_save_calibration(Genesys_Device* dev, const Genesys_Sensor& 
 static void genesys_flatbed_calibration(Genesys_Device* dev, Genesys_Sensor& sensor)
 {
     DBG_HELPER(dbg);
-    uint32_t pixels_per_line;
+    std::uint32_t pixels_per_line;
 
     unsigned coarse_res = sensor.full_resolution;
     if (dev->settings.yres <= sensor.full_resolution / 2) {
@@ -3951,8 +3849,8 @@ static void genesys_warmup_lamp(Genesys_Device* dev)
     auto channels = dev->session.params.channels;
     auto lines = dev->session.output_line_count;
 
-  std::vector<uint8_t> first_line(total_size);
-  std::vector<uint8_t> second_line(total_size);
+    std::vector<std::uint8_t> first_line(total_size);
+    std::vector<std::uint8_t> second_line(total_size);
 
     do {
         first_line = second_line;
@@ -4364,12 +4262,6 @@ static Genesys_Settings calculate_scan_settings(Genesys_Scanner* s)
         settings.color_filter = ColorFilter::BLUE;
     } else {
         settings.color_filter = ColorFilter::NONE;
-    }
-
-    if (s->color_filter == "None") {
-        settings.true_gray = 1;
-    } else {
-        settings.true_gray = 0;
     }
 
     // brightness and contrast only for for 8 bit scans
@@ -4993,8 +4885,8 @@ static void init_options(Genesys_Scanner* s)
 
   /* extra button */
   s->opt[OPT_EXTRA_SW].name = "extra";
-  s->opt[OPT_EXTRA_SW].title = SANE_I18N ("Extra button");
-  s->opt[OPT_EXTRA_SW].desc = SANE_I18N ("Extra button");
+  s->opt[OPT_EXTRA_SW].title = SANE_I18N("Extra button");
+  s->opt[OPT_EXTRA_SW].desc = SANE_I18N("Extra button");
   s->opt[OPT_EXTRA_SW].type = SANE_TYPE_BOOL;
   s->opt[OPT_EXTRA_SW].unit = SANE_UNIT_NONE;
   if (model->buttons & GENESYS_HAS_EXTRA_SW)
@@ -5002,6 +4894,66 @@ static void init_options(Genesys_Scanner* s)
       SANE_CAP_SOFT_DETECT | SANE_CAP_HARD_SELECT | SANE_CAP_ADVANCED;
   else
     s->opt[OPT_EXTRA_SW].cap = SANE_CAP_INACTIVE;
+
+  /* transparency/scan_film button */
+  s->opt[OPT_TRANSP_SW].name = "transparency";
+  s->opt[OPT_TRANSP_SW].title = SANE_I18N ("Transparency button");
+  s->opt[OPT_TRANSP_SW].desc = SANE_I18N ("Transparency button");
+  s->opt[OPT_TRANSP_SW].type = SANE_TYPE_BOOL;
+  s->opt[OPT_TRANSP_SW].unit = SANE_UNIT_NONE;
+  if (model->buttons & GENESYS_HAS_TRANSP_SW)
+    s->opt[OPT_TRANSP_SW].cap =
+      SANE_CAP_SOFT_DETECT | SANE_CAP_HARD_SELECT | SANE_CAP_ADVANCED;
+  else
+    s->opt[OPT_TRANSP_SW].cap = SANE_CAP_INACTIVE;
+
+  /* PDF special function button 1 */
+  s->opt[OPT_PDF1_SW].name = "pdf1";
+  s->opt[OPT_PDF1_SW].title = SANE_I18N ("PDF function button 1");
+  s->opt[OPT_PDF1_SW].desc = SANE_I18N ("PDF function button 1");
+  s->opt[OPT_PDF1_SW].type = SANE_TYPE_BOOL;
+  s->opt[OPT_PDF1_SW].unit = SANE_UNIT_NONE;
+  if (model->buttons & GENESYS_HAS_PDF1_SW)
+    s->opt[OPT_PDF1_SW].cap =
+      SANE_CAP_SOFT_DETECT | SANE_CAP_HARD_SELECT | SANE_CAP_ADVANCED;
+  else
+    s->opt[OPT_PDF1_SW].cap = SANE_CAP_INACTIVE;
+
+  /* PDF special function button 2 */
+  s->opt[OPT_PDF2_SW].name = "pdf2";
+  s->opt[OPT_PDF2_SW].title = SANE_I18N ("PDF function button 2");
+  s->opt[OPT_PDF2_SW].desc = SANE_I18N ("PDF function button 2");
+  s->opt[OPT_PDF2_SW].type = SANE_TYPE_BOOL;
+  s->opt[OPT_PDF2_SW].unit = SANE_UNIT_NONE;
+  if (model->buttons & GENESYS_HAS_PDF2_SW)
+    s->opt[OPT_PDF2_SW].cap =
+      SANE_CAP_SOFT_DETECT | SANE_CAP_HARD_SELECT | SANE_CAP_ADVANCED;
+  else
+    s->opt[OPT_PDF2_SW].cap = SANE_CAP_INACTIVE;
+
+  /* PDF special function button 3 */
+  s->opt[OPT_PDF3_SW].name = "pdf3";
+  s->opt[OPT_PDF3_SW].title = SANE_I18N ("PDF function button 3");
+  s->opt[OPT_PDF3_SW].desc = SANE_I18N ("PDF function button 3");
+  s->opt[OPT_PDF3_SW].type = SANE_TYPE_BOOL;
+  s->opt[OPT_PDF3_SW].unit = SANE_UNIT_NONE;
+  if (model->buttons & GENESYS_HAS_PDF3_SW)
+    s->opt[OPT_PDF3_SW].cap =
+      SANE_CAP_SOFT_DETECT | SANE_CAP_HARD_SELECT | SANE_CAP_ADVANCED;
+  else
+    s->opt[OPT_PDF3_SW].cap = SANE_CAP_INACTIVE;
+
+  /* PDF special function button 4 */
+  s->opt[OPT_PDF4_SW].name = "pdf4";
+  s->opt[OPT_PDF4_SW].title = SANE_I18N ("PDF function button 4");
+  s->opt[OPT_PDF4_SW].desc = SANE_I18N ("PDF function button 4");
+  s->opt[OPT_PDF4_SW].type = SANE_TYPE_BOOL;
+  s->opt[OPT_PDF4_SW].unit = SANE_UNIT_NONE;
+  if (model->buttons & GENESYS_HAS_PDF4_SW)
+    s->opt[OPT_PDF4_SW].cap =
+      SANE_CAP_SOFT_DETECT | SANE_CAP_HARD_SELECT | SANE_CAP_ADVANCED;
+  else
+    s->opt[OPT_PDF4_SW].cap = SANE_CAP_INACTIVE;
 
   /* calibration needed */
   s->opt[OPT_NEED_CALIBRATION_SW].name = "need-calibration";
@@ -5231,7 +5183,7 @@ static void probe_genesys_devices()
    of Genesys_Calibration_Cache as is.
 */
 static const char* CALIBRATION_IDENT = "sane_genesys";
-static const int CALIBRATION_VERSION = 31;
+static const int CALIBRATION_VERSION = 32;
 
 bool read_calibration(std::istream& str, Genesys_Device::Calibration& calibration,
                       const std::string& path)
@@ -5676,7 +5628,7 @@ static void get_option_value(Genesys_Scanner* s, int option, void* val)
     auto* dev = s->dev;
   unsigned int i;
     SANE_Word* table = nullptr;
-  std::vector<uint16_t> gamma_table;
+    std::vector<std::uint16_t> gamma_table;
   unsigned option_size = 0;
 
     const Genesys_Sensor* sensor = nullptr;
@@ -5821,6 +5773,11 @@ static void get_option_value(Genesys_Scanner* s, int option, void* val)
     case OPT_OCR_SW:
     case OPT_POWER_SW:
     case OPT_EXTRA_SW:
+    case OPT_TRANSP_SW:
+    case OPT_PDF1_SW:
+    case OPT_PDF2_SW:
+    case OPT_PDF3_SW:
+    case OPT_PDF4_SW:
         s->dev->cmd_set->update_hardware_sensors(s);
         *reinterpret_cast<SANE_Bool*>(val) = s->buttons[genesys_option_to_button(option)].read();
         break;
@@ -6456,6 +6413,11 @@ GenesysButtonName genesys_option_to_button(int option)
     case OPT_OCR_SW: return BUTTON_OCR_SW;
     case OPT_POWER_SW: return BUTTON_POWER_SW;
     case OPT_EXTRA_SW: return BUTTON_EXTRA_SW;
+    case OPT_TRANSP_SW: return BUTTON_TRANSP_SW;
+    case OPT_PDF1_SW: return BUTTON_PDF1_SW;
+    case OPT_PDF2_SW: return BUTTON_PDF2_SW;
+    case OPT_PDF3_SW: return BUTTON_PDF3_SW;
+    case OPT_PDF4_SW: return BUTTON_PDF4_SW;
     default: throw std::runtime_error("Unknown option to convert to button index");
     }
 }

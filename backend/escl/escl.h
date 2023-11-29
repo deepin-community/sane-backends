@@ -92,10 +92,12 @@ typedef struct {
 typedef struct ESCL_Device {
     struct ESCL_Device *next;
 
+    double    version;
     char     *model_name;
     int       port_nb;
     char     *ip_address;
     char     *is;
+    int       tls;
     char     *uuid;
     char     *type;
     SANE_Bool https;
@@ -146,6 +148,7 @@ typedef struct support
     int min;
     int max;
     int normal;
+    int value;
     int step;
 } support_t;
 
@@ -156,6 +159,7 @@ typedef struct capabilities
     SANE_String_Const *Sources;
     int SourcesSize;
     FILE *tmp;
+    char *scanJob;
     unsigned char *img_data;
     long img_size;
     long img_read;
@@ -230,6 +234,7 @@ SANE_Status escl_status(const ESCL_Device *device,
                         SANE_Status *job);
 
 capabilities_t *escl_capabilities(ESCL_Device *device,
+                                  char *blacklist,
                                   SANE_Status *status);
 
 char *escl_newjob(capabilities_t *scanner,
@@ -238,9 +243,11 @@ char *escl_newjob(capabilities_t *scanner,
 
 SANE_Status escl_scan(capabilities_t *scanner,
                       const ESCL_Device *device,
+                      char *scanJob,
                       char *result);
 
 void escl_scanner(const ESCL_Device *device,
+                  char *scanJob,
                   char *result);
 
 typedef void CURL;

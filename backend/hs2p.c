@@ -1565,14 +1565,14 @@ sane_init (SANE_Int * version_code,
   /*DBG (DBG_sane_init, "> sane_init (authorize = %p)\n", (void *) authorize); */
 #if defined PACKAGE && defined VERSION
   DBG (DBG_sane_init, "> sane_init: hs2p backend version %d.%d-%d ("
-       PACKAGE " " VERSION ")\n", SANE_CURRENT_MAJOR, V_MINOR, BUILD);
+       PACKAGE " " VERSION ")\n", SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, BUILD);
 #endif
   /*
      sanei_thread_init ();
    */
 
   if (version_code)
-    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, 0);
+    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, 0);
 
 
   if ((fp = sanei_config_open (HS2P_CONFIG_FILE)) != NULL)
@@ -3125,7 +3125,7 @@ sane_start (SANE_Handle handle)	/* begin scanning */
 	       sane_strstatus (status));
 	  return (status);
 	}
-      if ((s->data.adf_status & 0x00) == 0x01)
+      if ((s->data.adf_status & 0x01) == 0x01)
 	{
 	  DBG (DBG_warning, "sane_start: No document on ADF\n");
 	  return (SANE_STATUS_NO_DOCS);
@@ -3322,8 +3322,8 @@ sane_get_select_fd (SANE_Handle handle, SANE_Int * fd)
   *fd = s->fd;
   return SANE_STATUS_GOOD;
 #else
-  handle = handle;
-  fd = fd;			/* get rid of compiler warning */
+  (void) handle;
+  (void) fd;			/* get rid of compiler warning */
   DBG (DBG_proc, "<< sane_get_select_fd\n");
   return SANE_STATUS_UNSUPPORTED;
 #endif

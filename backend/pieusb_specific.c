@@ -260,7 +260,7 @@ sanei_pieusb_find_device_callback (const char *devicename)
       free (dev);
       DBG (DBG_error, "sanei_pieusb_find_device_callback: get scanner properties (5 bytes) failed with %d\n", status.pieusb_status);
       sanei_usb_close (device_number);
-      return status.pieusb_status;
+      return sanei_pieusb_convert_status (status.pieusb_status);
     }
     /* get full inquiry data */
     sanei_pieusb_cmd_inquiry(device_number, &inq, inq.additionalLength+4, &status);
@@ -268,7 +268,7 @@ sanei_pieusb_find_device_callback (const char *devicename)
         free (dev);
         DBG (DBG_error, "sanei_pieusb_find_device_callback: get scanner properties failed\n");
         sanei_usb_close (device_number);
-        return status.pieusb_status;
+        return sanei_pieusb_convert_status (status.pieusb_status);
     }
 
     /* Close the device again */
@@ -753,7 +753,7 @@ sanei_pieusb_init_options (Pieusb_Scanner* scanner)
     scanner->opt[OPT_FAST_INFRARED].cap |= SANE_CAP_SOFT_SELECT;
 
     /* automatically advance to next slide after scan */
-    scanner->opt[OPT_ADVANCE_SLIDE].name = "advcane";
+    scanner->opt[OPT_ADVANCE_SLIDE].name = "advance";
     scanner->opt[OPT_ADVANCE_SLIDE].title = "Advance slide";
     scanner->opt[OPT_ADVANCE_SLIDE].desc = "Automatically advance to next slide after scan";
     scanner->opt[OPT_ADVANCE_SLIDE].type = SANE_TYPE_BOOL;
@@ -1781,7 +1781,7 @@ sanei_pieusb_set_frame_from_options(Pieusb_Scanner * scanner)
     scanner->frame.index = 0x80; /* 0x80: value from cyberview */
     sanei_pieusb_cmd_set_scan_frame (scanner->device_number, scanner->frame.index, &(scanner->frame), &status);
     DBG (DBG_info_sane, "sanei_pieusb_set_frame_from_options(): sanei_pieusb_cmd_set_scan_frame status %s\n", sane_strstatus (sanei_pieusb_convert_status (status.pieusb_status)));
-    return status.pieusb_status;
+    return sanei_pieusb_convert_status (status.pieusb_status);
 }
 
 /*

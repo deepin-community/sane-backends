@@ -40,6 +40,14 @@
 #include <unistd.h>
 #include <stdarg.h>
 
+#ifdef __FreeBSD__
+#include <libgen.h>
+#endif
+
+#if defined (__APPLE__) && defined (__MACH__)
+#include <libgen.h>     // for basename()
+#endif
+
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -59,6 +67,10 @@
 
 #include "sicc.h"
 #include "stiff.h"
+
+#ifdef HAVE_LIBJPEG
+#include "jpegtopdf.h"
+#endif
 
 #include "../include/md5.h"
 
@@ -119,6 +131,7 @@ static struct option basic_options[] = {
 #define OUTPUT_TIFF     2
 #define OUTPUT_PNG      3
 #define OUTPUT_JPEG     4
+#define OUTPUT_PDF      5
 
 #define BASE_OPTSTRING	"d:hi:Lf:o:B::nvVTAbp"
 #define STRIP_HEIGHT	256	/* # lines we increment image height */
@@ -633,6 +646,9 @@ print_option (SANE_Device * device, int opt_num, const SANE_Option_Descriptor *o
   else if(!(opt->cap & SANE_CAP_SOFT_SELECT) && (opt->cap & SANE_CAP_SOFT_DETECT))
     fputs (" [read-only]", stdout);
 
+  else if (opt->cap & SANE_CAP_ADVANCED)
+    fputs (" [advanced]", stdout);
+
   fputs ("\n        ", stdout);
 
   column = 8;
@@ -909,9 +925,10 @@ fetch_options (SANE_Device * device)
 	  scanimage_exit (1);
 	}
 
-      /* create command line option only for settable options */
-      if (!SANE_OPTION_IS_SETTABLE (opt->cap) || opt->type == SANE_TYPE_GROUP)
-	continue;
+      /* create command line option only for non-group options */
+      /* Also we sometimes see options with no name in rogue backends. */
+      if ((opt->type == SANE_TYPE_GROUP) || (opt->name == NULL))
+        continue;
 
       option_number[option_count] = i;
 
@@ -1064,6 +1081,12 @@ process_backend_option (SANE_Handle device, int optnum, const char *optarg)
 
   opt = sane_get_option_descriptor (device, optnum);
 
+  if (!SANE_OPTION_IS_SETTABLE (opt->cap))
+    {
+      fprintf (stderr, "%s: attempted to set readonly option %s\n",
+               prog_name, opt->name);
+      scanimage_exit (1);
+    }
   if (!SANE_OPTION_IS_ACTIVE (opt->cap))
     {
       fprintf (stderr, "%s: attempted to set inactive option %s\n",
@@ -1328,7 +1351,7 @@ advance (Image * image)
 }
 
 static SANE_Status
-scan_it (FILE *ofp)
+scan_it (FILE *ofp, void* pw)
 {
   int i, len, first_frame = 1, offset = 0, must_buffer = 0;
   uint64_t hundred_percent = 0;
@@ -1353,6 +1376,8 @@ scan_it (FILE *ofp)
   struct jpeg_compress_struct cinfo;
   struct jpeg_error_mgr jerr;
 #endif
+
+  (void)pw;
 
   do
     {
@@ -1448,6 +1473,14 @@ scan_it (FILE *ofp)
 		    break;
 #endif
 #ifdef HAVE_LIBJPEG
+		  case OUTPUT_PDF:
+		    sane_pdf_start_page ( pw, parm.pixels_per_line, parm.lines,
+		               resolution_value, SANE_PDF_IMAGE_COLOR,
+		               SANE_PDF_ROTATE_OFF);
+		    write_jpeg_header (parm.format, parm.pixels_per_line,
+				       parm.lines, resolution_value,
+				       ofp, &cinfo, &jerr);
+		    break;
 		  case OUTPUT_JPEG:
 		    write_jpeg_header (parm.format, parm.pixels_per_line,
 				       parm.lines, resolution_value,
@@ -1465,7 +1498,7 @@ scan_it (FILE *ofp)
 	    pngbuf = malloc(parm.bytes_per_line);
 #endif
 #ifdef HAVE_LIBJPEG
-	  if(output_format == OUTPUT_JPEG)
+	  if(output_format == OUTPUT_JPEG || output_format == OUTPUT_PDF)
 	    jpegbuf = malloc(parm.bytes_per_line);
 #endif
 
@@ -1629,7 +1662,7 @@ scan_it (FILE *ofp)
 	      else
 #endif
 #ifdef HAVE_LIBJPEG
-	      if (output_format == OUTPUT_JPEG)
+	      if (output_format == OUTPUT_JPEG || output_format == OUTPUT_PDF)
 	        {
 		  int i = 0;
 		  int left = len;
@@ -1729,6 +1762,14 @@ scan_it (FILE *ofp)
       break;
 #endif
 #ifdef HAVE_LIBJPEG
+      case OUTPUT_PDF:
+	sane_pdf_start_page ( pw, parm.pixels_per_line, parm.lines,
+	           resolution_value, SANE_PDF_IMAGE_COLOR,
+	           SANE_PDF_ROTATE_OFF);
+	write_jpeg_header (parm.format, parm.pixels_per_line,
+			   parm.lines, resolution_value,
+			   ofp, &cinfo, &jerr);
+      break;
       case OUTPUT_JPEG:
 	write_jpeg_header (parm.format, parm.pixels_per_line,
 			   parm.lines, resolution_value,
@@ -1760,7 +1801,7 @@ scan_it (FILE *ofp)
 	png_write_end(png_ptr, info_ptr);
 #endif
 #ifdef HAVE_LIBJPEG
-    if(output_format == OUTPUT_JPEG)
+    if(output_format == OUTPUT_JPEG || output_format == OUTPUT_PDF)
 	jpeg_finish_compress(&cinfo);
 #endif
 
@@ -1775,7 +1816,7 @@ cleanup:
   }
 #endif
 #ifdef HAVE_LIBJPEG
-  if(output_format == OUTPUT_JPEG) {
+  if(output_format == OUTPUT_JPEG || output_format == OUTPUT_PDF) {
     jpeg_destroy_compress(&cinfo);
     free(jpegbuf);
   }
@@ -1987,6 +2028,10 @@ static void print_options(SANE_Device * device, SANE_Int num_dev_options, SANE_B
       if (!opt)
 	opt = sane_get_option_descriptor (device, i);
 
+      /* Some options from rogue backends are empty. */
+      if (opt->name == NULL)
+        continue;
+
       if (ro || SANE_OPTION_IS_SETTABLE (opt->cap)
 	  || opt->type == SANE_TYPE_GROUP)
 	print_option (device, i, opt);
@@ -2017,7 +2062,8 @@ static int guess_output_format(const char* output_file)
         { ".jpg", OUTPUT_JPEG },
         { ".jpeg", OUTPUT_JPEG },
         { ".tiff", OUTPUT_TIFF },
-        { ".tif", OUTPUT_TIFF }
+        { ".tif", OUTPUT_TIFF },
+        { ".pdf", OUTPUT_PDF }
       };
       for (unsigned i = 0; i < sizeof(formats) / sizeof(formats[0]); ++i)
         {
@@ -2052,6 +2098,7 @@ main (int argc, char **argv)
   SANE_Status status;
   char *full_optstring;
   SANE_Int version_code;
+  void *pw = NULL;
   FILE *ofp = NULL;
 
   buffer_size = (32 * 1024);	/* default size */
@@ -2152,6 +2199,15 @@ main (int argc, char **argv)
 	      output_format = OUTPUT_JPEG;
 #else
 	      fprintf(stderr, "JPEG support not compiled in\n");
+	      exit(1);
+#endif
+	    }
+	  else if (strcmp (optarg, "pdf") == 0)
+	    {
+#ifdef HAVE_LIBJPEG
+	      output_format = OUTPUT_PDF;
+#else
+	      fprintf(stderr, "PDF support not compiled in\n");
 	      exit(1);
 #endif
 	    }
@@ -2308,7 +2364,7 @@ standard output.\n\
 Parameters are separated by a blank from single-character options (e.g.\n\
 -d epson) and by a \"=\" from multi-character options (e.g. --device-name=epson).\n\
 -d, --device-name=DEVICE   use a given scanner device (e.g. hp:/dev/scanner)\n\
-    --format=pnm|tiff|png|jpeg  file format of output file\n\
+    --format=pnm|tiff|png|jpeg|pdf  file format of output file\n\
 -i, --icc-profile=PROFILE  include this ICC profile into TIFF file\n", prog_name);
       printf ("\
 -L, --list-devices         show available scanner devices\n\
@@ -2622,6 +2678,9 @@ List of available devices:", prog_name);
 	    break;
 #endif
 #ifdef HAVE_LIBJPEG
+	  case OUTPUT_PDF:
+	    format = "out%d.pdf";
+	    break;
 	  case OUTPUT_JPEG:
 	    format = "out%d.jpg";
 	    break;
@@ -2642,6 +2701,13 @@ List of available devices:", prog_name);
                   scanimage_exit(1);
                 }
             }
+#ifdef HAVE_LIBJPEG
+         if (output_format == OUTPUT_PDF)
+           {
+             sane_pdf_open(&pw, ofp );
+             sane_pdf_start_doc( pw );
+           }
+#endif
         }
 
       if (batch)
@@ -2667,11 +2733,14 @@ List of available devices:", prog_name);
 	{
 	  char path[PATH_MAX];
 	  char part_path[PATH_MAX];
-	  if (batch)		/* format is NULL unless batch mode */
+	  if (batch)  /* format is NULL unless batch mode */
 	    {
 	      sprintf (path, format, n);	/* love --(C++) */
 	      strcpy (part_path, path);
-	      strcat (part_path, ".part");
+#ifdef HAVE_LIBJPEG
+	      if (output_format != OUTPUT_PDF)
+#endif
+     	         strcat (part_path, ".part");
 	    }
 
 
@@ -2689,6 +2758,13 @@ List of available devices:", prog_name);
 		    {
 		      if (ofp)
 			{
+#ifdef HAVE_LIBJPEG
+	                  if (output_format == OUTPUT_PDF)
+			    {
+		              sane_pdf_end_doc( pw );
+			      sane_pdf_close ( pw );
+			    }
+#endif
 			  fclose (ofp);
 			  ofp = NULL;
 			}
@@ -2711,8 +2787,15 @@ List of available devices:", prog_name);
 	    {
 	      fprintf (stderr, "%s: sane_start: %s\n",
 		       prog_name, sane_strstatus (status));
-	      if (ofp)
+	      if (ofp )
 		{
+#ifdef HAVE_LIBJPEG
+	          if (output_format == OUTPUT_PDF)
+		    {
+		       sane_pdf_end_doc( pw );
+		       sane_pdf_close ( pw );
+		     }
+#endif
 		  fclose (ofp);
 		  ofp = NULL;
 		}
@@ -2723,15 +2806,42 @@ List of available devices:", prog_name);
 	  /* write to .part file while scanning is in progress */
 	  if (batch)
 	    {
-	      if (NULL == (ofp = fopen (part_path, "w")))
+#ifdef HAVE_LIBJPEG
+	      SANE_Bool init_pdf = SANE_FALSE;
+#endif
+	      if (ofp == NULL)
+	        {
+	          ofp = fopen (part_path, "w");
+#ifdef HAVE_LIBJPEG
+	          if (output_format == OUTPUT_PDF && ofp != NULL)
+	             init_pdf = SANE_TRUE;
+#endif
+	        }
+	      if (NULL == ofp)
 		{
 		  fprintf (stderr, "cannot open %s\n", part_path);
 		  sane_cancel (device);
 		  return SANE_STATUS_ACCESS_DENIED;
 		}
+#ifdef HAVE_LIBJPEG
+	      if (init_pdf )
+	        {
+		  sane_pdf_open( &pw, ofp );
+		  sane_pdf_start_doc ( pw );
+		}
+#endif
 	    }
 
-	  status = scan_it (ofp);
+	  status = scan_it (ofp, pw);
+
+#ifdef HAVE_LIBJPEG
+	  if (output_format == OUTPUT_PDF)
+	    {
+		  sane_pdf_end_page( pw );
+		  fflush( ofp );
+	    }
+#endif
+
 	  if (batch)
 	    {
 	      fprintf (stderr, "Scanned page %d.", n);
@@ -2745,32 +2855,47 @@ List of available devices:", prog_name);
 	      status = SANE_STATUS_GOOD;
 	      if (batch)
 		{
-		  if (!ofp || 0 != fclose(ofp))
+#ifdef HAVE_LIBJPEG
+	          if (output_format != OUTPUT_PDF)
 		    {
-		      fprintf (stderr, "cannot close image file\n");
-		      sane_cancel (device);
-		      return SANE_STATUS_ACCESS_DENIED;
+#endif
+		      if (!ofp || 0 != fclose(ofp))
+		        {
+		           fprintf (stderr, "cannot close image file\n");
+		           sane_cancel (device);
+		           return SANE_STATUS_ACCESS_DENIED;
+		        }
+		      else
+		        {
+		           ofp = NULL;
+		           /* let the fully scanned file show up */
+		           if (rename (part_path, path))
+		             {
+		               fprintf (stderr, "cannot rename %s to %s\n",
+		                        part_path, path);
+			       sane_cancel (device);
+			       return SANE_STATUS_ACCESS_DENIED;
+			     }
+		           if (batch_print)
+			     {
+			        fprintf (stdout, "%s\n", path);
+			        fflush (stdout);
+			     }
+		        }
+#ifdef HAVE_LIBJPEG
 		    }
-		  else
-		    {
-		      ofp = NULL;
-		      /* let the fully scanned file show up */
-		      if (rename (part_path, path))
-			{
-			  fprintf (stderr, "cannot rename %s to %s\n",
-				part_path, path);
-			  sane_cancel (device);
-			  return SANE_STATUS_ACCESS_DENIED;
-			}
-		      if (batch_print)
-			{
-			  fprintf (stdout, "%s\n", path);
-			  fflush (stdout);
-			}
-		    }
+#endif
 		}
               else
                 {
+#ifdef HAVE_LIBJPEG
+	              if (output_format == OUTPUT_PDF)
+		            {
+			          sane_pdf_end_doc( pw );
+			          fflush( ofp );
+			          sane_pdf_close ( pw );
+			        }
+#endif
                   if (output_file && ofp)
                     {
                       fclose(ofp);
@@ -2783,13 +2908,20 @@ List of available devices:", prog_name);
 		{
 		  if (ofp)
 		    {
-		      fclose (ofp);
-		      ofp = NULL;
-		    }
+		          fclose (ofp);
+		          ofp = NULL;
+			}
 		  unlink (part_path);
 		}
               else
                 {
+#ifdef HAVE_LIBJPEG
+                  if (output_format == OUTPUT_PDF)
+                    {
+                       sane_pdf_end_doc( pw );
+                       sane_pdf_close ( pw );
+                    }
+#endif
                   if (output_file && ofp)
                     {
                       fclose(ofp);
@@ -2807,6 +2939,19 @@ List of available devices:", prog_name);
 
       if (batch)
 	{
+#ifdef HAVE_LIBJPEG
+	  if (output_format == OUTPUT_PDF)
+            {
+	      if (output_file && ofp)
+	        {
+	          sane_pdf_end_doc( pw );
+	          fflush( ofp );
+	          sane_pdf_close ( pw );
+                  fclose(ofp);
+                  ofp = NULL;
+		}
+	    }
+#endif
 	  int num_pgs = (n - batch_start_at) / batch_increment;
 	  fprintf (stderr, "Batch terminated, %d page%s scanned\n",
 		   num_pgs, num_pgs == 1 ? "" : "s");

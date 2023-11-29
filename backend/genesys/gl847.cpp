@@ -17,27 +17,6 @@
 
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-   As a special exception, the authors of SANE give permission for
-   additional uses of the libraries contained in this release of SANE.
-
-   The exception is that, if you link a SANE library with other files
-   to produce an executable, this does not by itself cause the
-   resulting executable to be covered by the GNU General Public
-   License.  Your use of that executable is in no way restricted on
-   account of linking the SANE library code into it.
-
-   This exception does not, however, invalidate any other reasons why
-   the executable file might be covered by the GNU General Public
-   License.
-
-   If you submit changes to SANE to the maintainers to be included in
-   a subsequent release, you agree by submitting the changes that
-   those changes may be distributed with this exception intact.
-
-   If you write modifications of your own for SANE, it is your choice
-   whether to permit this exception to apply to your modifications.
-   If you do not wish that, delete this exception notice.
 */
 
 #define DEBUG_DECLARE_ONLY
@@ -72,7 +51,7 @@ gl847_init_registers (Genesys_Device * dev)
 {
     DBG_HELPER(dbg);
   int lide700=0;
-  uint8_t val;
+    std::uint8_t val;
 
   /* 700F class needs some different initial settings */
     if (dev->model->model_id == ModelId::CANON_LIDE_700F) {
@@ -254,7 +233,8 @@ gl847_init_registers (Genesys_Device * dev)
 }
 
 // Set values of analog frontend
-void CommandSetGl847::set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor, uint8_t set) const
+void CommandSetGl847::set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor,
+                             std::uint8_t set) const
 {
     DBG_HELPER_ARGS(dbg, "%s", set == AFE_INIT ? "init" :
                                set == AFE_SET ? "set" :
@@ -338,25 +318,13 @@ static void gl847_init_motor_regs_scan(Genesys_Device* dev,
 
     unsigned step_multiplier = gl847_get_step_multiplier (reg);
 
-    bool use_fast_fed = false;
-    if (dev->settings.yres == 4444 && feed_steps > 100 && !has_flag(flags, ScanFlag::FEEDING)) {
-        use_fast_fed = true;
-    }
-    if (has_flag(dev->model->flags, ModelFlag::DISABLE_FAST_FEEDING)) {
-        use_fast_fed = false;
-    }
-
     reg->set24(REG_LINCNT, scan_lines);
 
     reg->set8(REG_0x02, 0);
     sanei_genesys_set_motor_power(*reg, true);
 
     std::uint8_t reg02 = reg->get8(REG_0x02);
-    if (use_fast_fed) {
-        reg02 |= REG_0x02_FASTFED;
-    } else {
-        reg02 &= ~REG_0x02_FASTFED;
-    }
+    reg02 &= ~REG_0x02_FASTFED;
 
     if (has_flag(flags, ScanFlag::AUTO_GO_HOME)) {
         reg02 |= REG_0x02_AGOHOME | REG_0x02_NOTHOME;
@@ -402,19 +370,11 @@ static void gl847_init_motor_regs_scan(Genesys_Device* dev,
     // correct move distance by acceleration and deceleration amounts
     unsigned feedl = feed_steps;
     unsigned dist = 0;
-    if (use_fast_fed)
-    {
-        feedl <<= static_cast<unsigned>(fast_step_type);
-        dist = (scan_table.table.size() + 2 * fast_table.table.size());
-        // TODO read and decode REG_0xAB
-        dist += (reg->get8(0x5e) & 31);
-        dist += reg->get8(REG_FEDCNT);
-    } else {
-        feedl <<= static_cast<unsigned>(motor_profile.step_type);
-        dist = scan_table.table.size();
-        if (has_flag(flags, ScanFlag::FEEDING)) {
-            dist *= 2;
-        }
+
+    feedl <<= static_cast<unsigned>(motor_profile.step_type);
+    dist = scan_table.table.size();
+    if (has_flag(flags, ScanFlag::FEEDING)) {
+        dist *= 2;
     }
 
     // check for overflow
@@ -430,7 +390,7 @@ static void gl847_init_motor_regs_scan(Genesys_Device* dev,
     unsigned tgtime = 1 << (reg->get8(REG_0x1C) & REG_0x1C_TGTIME);
 
     // hi res motor speed GPIO
-    uint8_t effective = dev->interface->read_register(REG_0x6C);
+    std::uint8_t effective = dev->interface->read_register(REG_0x6C);
 
     // if quarter step, bipolar Vref2
 
@@ -456,7 +416,7 @@ static void gl847_init_motor_regs_scan(Genesys_Device* dev,
     reg->set8(REG_BWDSTEP, min_restep);
 
     std::uint32_t z1, z2;
-    sanei_genesys_calculate_zmod(use_fast_fed,
+    sanei_genesys_calculate_zmod(false,
                                  scan_exposure_time * ccdlmt * tgtime,
                                  scan_table.table,
                                  scan_table.table.size(),
@@ -665,7 +625,7 @@ void CommandSetGl847::init_regs_for_scan_session(Genesys_Device* dev, const Gene
     dev->session = session;
 
     dev->total_bytes_read = 0;
-    dev->total_bytes_to_read = session.output_line_bytes_requested * session.params.lines;
+    dev->total_bytes_to_read = (size_t)session.output_line_bytes_requested * (size_t)session.params.lines;
 
     DBG(DBG_info, "%s: total bytes to send = %zu\n", __func__, dev->total_bytes_to_read);
 }
@@ -735,6 +695,8 @@ ScanSession CommandSetGl847::calculate_scan_session(const Genesys_Device* dev,
     session.params.scan_method = settings.scan_method;
     session.params.scan_mode = settings.scan_mode;
     session.params.color_filter = settings.color_filter;
+    session.params.contrast_adjustment = settings.contrast;
+    session.params.brightness_adjustment = settings.brightness;
     session.params.flags = flags;
 
     compute_session(dev, session, sensor);
@@ -761,7 +723,7 @@ void CommandSetGl847::begin_scan(Genesys_Device* dev, const Genesys_Sensor& sens
 {
     DBG_HELPER(dbg);
     (void) sensor;
-  uint8_t val;
+    std::uint8_t val;
 
     if (reg->state.is_xpa_on && reg->state.is_lamp_on) {
         dev->cmd_set->set_xpa_lamp_power(*dev, true);
@@ -900,6 +862,8 @@ void CommandSetGl847::init_regs_for_shading(Genesys_Device* dev, const Genesys_S
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = dev->settings.color_filter;
+    session.params.contrast_adjustment = dev->settings.contrast;
+    session.params.brightness_adjustment = dev->settings.brightness;
     session.params.flags = flags;
     compute_session(dev, session, calib_sensor);
 
@@ -916,11 +880,10 @@ void CommandSetGl847::init_regs_for_shading(Genesys_Device* dev, const Genesys_S
  * for all the channels.
  */
 void CommandSetGl847::send_shading_data(Genesys_Device* dev, const Genesys_Sensor& sensor,
-                                        uint8_t* data, int size) const
+                                        std::uint8_t* data, int size) const
 {
     DBG_HELPER_ARGS(dbg, "writing %d bytes of shading data", size);
     std::uint32_t addr, i;
-  uint8_t val,*ptr,*src;
 
     unsigned length = static_cast<unsigned>(size / 3);
 
@@ -938,7 +901,7 @@ void CommandSetGl847::send_shading_data(Genesys_Device* dev, const Genesys_Senso
     dev->interface->record_key_value("shading_length", std::to_string(length));
     dev->interface->record_key_value("shading_factor", std::to_string(sensor.shading_factor));
 
-  std::vector<uint8_t> buffer(pixels, 0);
+    std::vector<std::uint8_t> buffer(pixels, 0);
 
   DBG(DBG_io2, "%s: using chunks of %d (0x%04x) bytes\n", __func__, pixels, pixels);
 
@@ -954,12 +917,12 @@ void CommandSetGl847::send_shading_data(Genesys_Device* dev, const Genesys_Senso
     {
       /* build up actual shading data by copying the part from the full width one
        * to the one corresponding to SHDAREA */
-      ptr = buffer.data();
+        std::uint8_t* ptr = buffer.data();
 
         // iterate on both sensor segment
         for (unsigned x = 0; x < pixels; x += 4 * sensor.shading_factor) {
-          /* coefficient source */
-            src = (data + offset + i * length) + x;
+            // coefficient source
+            std::uint8_t* src = (data + offset + i * length) + x;
 
           /* coefficient copy */
           ptr[0]=src[0];
@@ -971,7 +934,7 @@ void CommandSetGl847::send_shading_data(Genesys_Device* dev, const Genesys_Senso
           ptr+=4;
         }
 
-        val = dev->interface->read_register(0xd0+i);
+        std::uint8_t val = dev->interface->read_register(0xd0+i);
         addr = val * 8192 + 0x10000000;
         dev->interface->write_ahb(addr, pixels, buffer.data());
     }
@@ -1067,7 +1030,7 @@ void CommandSetGl847::asic_boot(Genesys_Device* dev, bool cold) const
     }
 
     // test CHKVER
-    uint8_t val = dev->interface->read_register(REG_0x40);
+    std::uint8_t val = dev->interface->read_register(REG_0x40);
     if (val & REG_0x40_CHKVER) {
         val = dev->interface->read_register(0x00);
         DBG(DBG_info, "%s: reported version for genesys chip is 0x%02x\n", __func__, val);
@@ -1126,27 +1089,46 @@ void CommandSetGl847::update_hardware_sensors(Genesys_Scanner* s) const
   /* do what is needed to get a new set of events, but try to not lose
      any of them.
    */
-  uint8_t val;
-  uint8_t scan, file, email, copy;
+    std::uint8_t val;
     switch(s->dev->model->gpio_id) {
     case GpioId::CANON_LIDE_700F:
-        scan=0x04;
-        file=0x02;
-        email=0x01;
-        copy=0x08;
-        break;
-    default:
-        scan=0x01;
-        file=0x02;
-        email=0x04;
-        copy=0x08;
-    }
-    val = s->dev->interface->read_register(REG_0x6D);
+        val = s->dev->interface->read_register(REG_0x6D);
+        DBG(DBG_io, "%s: read buttons_gpio value=0x%x\n", __func__, (int)val);
 
-    s->buttons[BUTTON_SCAN_SW].write((val & scan) == 0);
-    s->buttons[BUTTON_FILE_SW].write((val & file) == 0);
-    s->buttons[BUTTON_EMAIL_SW].write((val & email) == 0);
-    s->buttons[BUTTON_COPY_SW].write((val & copy) == 0);
+        s->buttons[BUTTON_SCAN_SW].write((val & 0x04) == 0);
+        s->buttons[BUTTON_FILE_SW].write((val & 0x02) == 0);
+        s->buttons[BUTTON_EMAIL_SW].write((val & 0x01) == 0);
+        s->buttons[BUTTON_COPY_SW].write((val & 0x08) == 0);
+        break;
+
+    case GpioId::CANON_5600F:
+        val = s->dev->interface->read_register(REG_0x6D);
+        DBG(DBG_io, "%s: read buttons_gpio 0x6d value=0x%x\n", __func__, (int)val);
+        s->buttons[BUTTON_SCAN_SW].write((val & 0x02) == 0);
+        s->buttons[BUTTON_EMAIL_SW].write((val & 0x01) == 0);
+        s->buttons[BUTTON_COPY_SW].write((val & 0x08) == 0);
+        s->buttons[BUTTON_PDF4_SW].write((val & 0x04) == 0);
+
+        val = s->dev->interface->read_register(REG_0xA6);
+        DBG(DBG_io, "%s: read buttons_gpio 0xa6 value=0x%x\n", __func__, (int)val);
+        s->buttons[BUTTON_PDF1_SW].write((val & 0x03) == 0x01);
+        s->buttons[BUTTON_PDF2_SW].write((val & 0x03) == 0x02);
+
+        val = s->dev->interface->read_register(REG_0x6C);
+        DBG(DBG_io, "%s: read buttons_gpio 0x6c value=0x%x\n", __func__, (int)val);
+        s->buttons[BUTTON_PDF3_SW].write((val & 0x80) == 0x00);
+        break;
+
+    default:
+        val = s->dev->interface->read_register(REG_0x6D);
+        DBG(DBG_io, "%s: read buttons_gpio value=0x%x\n", __func__, (int)val);
+
+        s->buttons[BUTTON_SCAN_SW].write((val & 0x01) == 0);
+        s->buttons[BUTTON_FILE_SW].write((val & 0x02) == 0);
+        s->buttons[BUTTON_EMAIL_SW].write((val & 0x04) == 0);
+        s->buttons[BUTTON_COPY_SW].write((val & 0x08) == 0);
+        break;
+    }
 }
 
 void CommandSetGl847::update_home_sensor_gpio(Genesys_Device& dev) const

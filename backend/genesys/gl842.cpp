@@ -17,9 +17,6 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-    As a special exception, the authors of SANE give permission for
-    additional uses of the libraries contained in this release of SANE.
 */
 
 #define DEBUG_DECLARE_ONLY
@@ -226,7 +223,8 @@ static void gl842_init_registers(Genesys_Device& dev)
 }
 
 // Set values of analog frontend
-void CommandSetGl842::set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor, uint8_t set) const
+void CommandSetGl842::set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor,
+                             std::uint8_t set) const
 {
     DBG_HELPER_ARGS(dbg, "%s", set == AFE_INIT ? "init" :
                                set == AFE_SET ? "set" :
@@ -239,7 +237,7 @@ void CommandSetGl842::set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor, 
 
     // check analog frontend type
     // FIXME: looks like we write to that register with initial data
-    uint8_t fe_type = dev->interface->read_register(REG_0x04) & REG_0x04_FESET;
+    std::uint8_t fe_type = dev->interface->read_register(REG_0x04) & REG_0x04_FESET;
     if (fe_type == 2 || dev->model->model_id == ModelId::CANON_LIDE_90) {
         for (const auto& reg : dev->frontend.regs) {
             dev->interface->write_fe_register(reg.address, reg.value);
@@ -571,7 +569,7 @@ void CommandSetGl842::init_regs_for_scan_session(Genesys_Device* dev, const Gene
     dev->session = session;
 
     dev->total_bytes_read = 0;
-    dev->total_bytes_to_read = session.output_line_bytes_requested * session.params.lines;
+    dev->total_bytes_to_read = (size_t)session.output_line_bytes_requested * (size_t)session.params.lines;
 }
 
 ScanSession CommandSetGl842::calculate_scan_session(const Genesys_Device* dev,
@@ -629,6 +627,8 @@ ScanSession CommandSetGl842::calculate_scan_session(const Genesys_Device* dev,
     session.params.scan_method = settings.scan_method;
     session.params.scan_mode = settings.scan_mode;
     session.params.color_filter = settings.color_filter;
+    session.params.contrast_adjustment = settings.contrast;
+    session.params.brightness_adjustment = settings.brightness;
     session.params.flags = flags;
     compute_session(dev, session, sensor);
 
@@ -823,6 +823,8 @@ void CommandSetGl842::init_regs_for_shading(Genesys_Device* dev, const Genesys_S
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = dev->settings.scan_mode;
     session.params.color_filter = dev->settings.color_filter;
+    session.params.contrast_adjustment = dev->settings.contrast;
+    session.params.brightness_adjustment = dev->settings.brightness;
     session.params.flags = flags;
     compute_session(dev, session, calib_sensor);
 
@@ -840,11 +842,11 @@ void CommandSetGl842::send_gamma_table(Genesys_Device* dev, const Genesys_Sensor
 
     unsigned size = 256;
 
-    std::vector<uint8_t> gamma(size * 2 * 3);
+    std::vector<std::uint8_t> gamma(size * 2 * 3);
 
-    std::vector<uint16_t> rgamma = get_gamma_table(dev, sensor, GENESYS_RED);
-    std::vector<uint16_t> ggamma = get_gamma_table(dev, sensor, GENESYS_GREEN);
-    std::vector<uint16_t> bgamma = get_gamma_table(dev, sensor, GENESYS_BLUE);
+    std::vector<std::uint16_t> rgamma = get_gamma_table(dev, sensor, GENESYS_RED);
+    std::vector<std::uint16_t> ggamma = get_gamma_table(dev, sensor, GENESYS_GREEN);
+    std::vector<std::uint16_t> bgamma = get_gamma_table(dev, sensor, GENESYS_BLUE);
 
     // copy sensor specific's gamma tables
     for (unsigned i = 0; i < size; i++) {
@@ -916,6 +918,8 @@ void CommandSetGl842::init_regs_for_warmup(Genesys_Device* dev, const Genesys_Se
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = dev->settings.color_filter;
+    session.params.contrast_adjustment = 0;
+    session.params.brightness_adjustment = 0;
     session.params.flags = flags;
 
     compute_session(dev, session, calib_sensor);
@@ -948,7 +952,7 @@ void CommandSetGl842::asic_boot(Genesys_Device* dev, bool cold) const
     dev->interface->write_registers(dev->reg);
 
     if (dev->model->model_id == ModelId::PLUSTEK_OPTICFILM_7200) {
-        uint8_t data[32] = {
+        std::uint8_t data[32] = {
             0xd0, 0x38, 0x07, 0x00, 0x01, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1003,7 +1007,7 @@ void CommandSetGl842::update_home_sensor_gpio(Genesys_Device& dev) const
  * for all the channels.
  */
 void CommandSetGl842::send_shading_data(Genesys_Device* dev, const Genesys_Sensor& sensor,
-                                        uint8_t* data, int size) const
+                                        std::uint8_t* data, int size) const
 {
     DBG_HELPER(dbg);
 
@@ -1029,7 +1033,7 @@ void CommandSetGl842::send_shading_data(Genesys_Device* dev, const Genesys_Senso
     dev->interface->record_key_value("shading_offset", std::to_string(offset));
     dev->interface->record_key_value("shading_length", std::to_string(length));
 
-    std::vector<uint8_t> final_data(length, 0);
+    std::vector<std::uint8_t> final_data(length, 0);
 
     unsigned count = 0;
     if (offset < 0) {

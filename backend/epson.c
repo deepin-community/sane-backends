@@ -2653,7 +2653,7 @@ sane_init (SANE_Int * version_code, SANE_Auth_Callback authorize)
   size_t len;
   FILE *fp;
 
-  authorize = authorize;        /* get rid of compiler warning */
+  (void) authorize;             /* get rid of compiler warning */
 
   /* sanei_authorization(devicename, STRINGIFY(BACKEND_NAME), auth_callback); */
 
@@ -2663,7 +2663,7 @@ sane_init (SANE_Int * version_code, SANE_Auth_Callback authorize)
 #endif
 
   if (version_code != NULL)
-    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, SANE_EPSON_BUILD);
+    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, SANE_EPSON_BUILD);
 
   sanei_usb_init ();
 
@@ -2753,7 +2753,7 @@ sane_get_devices (const SANE_Device * **device_list, SANE_Bool local_only)
 
   DBG (5, "sane_get_devices()\n");
 
-  local_only = local_only;      /* just to get rid of the compiler warning */
+  (void) local_only;            /* just to get rid of the compiler warning */
 
   if (devlist)
   {
@@ -6383,8 +6383,8 @@ SANE_Status
 sane_set_io_mode (SANE_Handle handle, SANE_Bool non_blocking)
 {
   /* get rid of compiler warning */
-  handle = handle;
-  non_blocking = non_blocking;
+  (void) handle;
+  (void) non_blocking;
 
   return SANE_STATUS_UNSUPPORTED;
 }
@@ -6399,8 +6399,8 @@ SANE_Status
 sane_get_select_fd (SANE_Handle handle, SANE_Int * fd)
 {
   /* get rid of compiler warnings */
-  handle = handle;
-  fd = fd;
+  (void) handle;
+  (void) fd;
 
   return SANE_STATUS_UNSUPPORTED;
 }

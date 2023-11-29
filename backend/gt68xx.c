@@ -1174,8 +1174,11 @@ static SANE_Status probe_gt68xx_devices(void)
                        new_dev[i]->model->firmware_name);
                 }
               if (i == 0)
-                DBG (5, "sane_init: firmware %s can't be loaded, set device "
-                     "first\n", word);
+                {
+                  DBG (5, "sane_init: firmware %s can't be loaded, set device "
+                       "first\n", word);
+                  free (word);
+                }
             }
           else
             {
@@ -1198,8 +1201,11 @@ static SANE_Status probe_gt68xx_devices(void)
                        new_dev[i]->model->name, new_dev[i]->model->vendor);
                 }
               if (i == 0)
-                DBG (5, "sane_init: can't set vendor name %s, set device "
-                     "first\n", word);
+                {
+                  DBG (5, "sane_init: can't set vendor name %s, set device "
+                       "first\n", word);
+                  free (word);
+                }
             }
           else
             {
@@ -1221,9 +1227,11 @@ static SANE_Status probe_gt68xx_devices(void)
                        new_dev[i]->model->name, new_dev[i]->model->model);
                 }
               if (i == 0)
-                DBG (5, "sane_init: can't set model name %s, set device "
-                     "first\n", word);
-              free (word);
+                {
+                  DBG (5, "sane_init: can't set model name %s, set device "
+                       "first\n", word);
+                  free (word);
+                }
             }
           else
             {
@@ -1332,10 +1340,10 @@ sane_init (SANE_Int * version_code, SANE_Auth_Callback authorize)
     }
 #endif
   DBG (2, "SANE GT68xx backend version %d.%d build %d from %s\n", SANE_CURRENT_MAJOR,
-       V_MINOR, BUILD, PACKAGE_STRING);
+       SANE_CURRENT_MINOR, BUILD, PACKAGE_STRING);
 
   if (version_code)
-    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, BUILD);
+    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, BUILD);
 
   DBG (5, "sane_init: authorize %s null\n", authorize ? "!=" : "==");
 

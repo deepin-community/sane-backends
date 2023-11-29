@@ -23,27 +23,6 @@
 
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-   As a special exception, the authors of SANE give permission for
-   additional uses of the libraries contained in this release of SANE.
-
-   The exception is that, if you link a SANE library with other files
-   to produce an executable, this does not by itself cause the
-   resulting executable to be covered by the GNU General Public
-   License.  Your use of that executable is in no way restricted on
-   account of linking the SANE library code into it.
-
-   This exception does not, however, invalidate any other reasons why
-   the executable file might be covered by the GNU General Public
-   License.
-
-   If you submit changes to SANE to the maintainers to be included in
-   a subsequent release, you agree by submitting the changes that
-   those changes may be distributed with this exception intact.
-
-   If you write modifications of your own for SANE, it is your choice
-   whether to permit this exception to apply to your modifications.
-   If you do not wish that, delete this exception notice.
 */
 
 #define DEBUG_DECLARE_ONLY
@@ -64,11 +43,12 @@ constexpr unsigned CALIBRATION_LINES = 10;
 static void write_control(Genesys_Device* dev, const Genesys_Sensor& sensor, int resolution);
 
 
-static void gl646_set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor, uint8_t set, int dpi);
+static void gl646_set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor, std::uint8_t set,
+                         int dpi);
 
 static void simple_scan(Genesys_Device* dev, const Genesys_Sensor& sensor,
                         const ScanSession& session, bool move,
-                        std::vector<uint8_t>& data, const char* test_identifier);
+                        std::vector<std::uint8_t>& data, const char* test_identifier);
 /**
  * Send the stop scan command
  * */
@@ -395,7 +375,7 @@ static Motor_Master motor_master[] = {
 /**
  * reads value from gpio endpoint
  */
-static void gl646_gpio_read(IUsbDevice& usb_dev, uint8_t* value)
+static void gl646_gpio_read(IUsbDevice& usb_dev, std::uint8_t* value)
 {
     DBG_HELPER(dbg);
     usb_dev.control_msg(REQUEST_TYPE_IN, REQUEST_REGISTER, GPIO_READ, INDEX, 1, value);
@@ -404,7 +384,7 @@ static void gl646_gpio_read(IUsbDevice& usb_dev, uint8_t* value)
 /**
  * writes the given value to gpio endpoint
  */
-static void gl646_gpio_write(IUsbDevice& usb_dev, uint8_t value)
+static void gl646_gpio_write(IUsbDevice& usb_dev, std::uint8_t value)
 {
     DBG_HELPER_ARGS(dbg, "(0x%02x)", value);
     usb_dev.control_msg(REQUEST_TYPE_OUT, REQUEST_REGISTER, GPIO_WRITE, INDEX, 1, &value);
@@ -413,7 +393,7 @@ static void gl646_gpio_write(IUsbDevice& usb_dev, uint8_t value)
 /**
  * writes the given value to gpio output enable endpoint
  */
-static void gl646_gpio_output_enable(IUsbDevice& usb_dev, uint8_t value)
+static void gl646_gpio_output_enable(IUsbDevice& usb_dev, std::uint8_t value)
 {
     DBG_HELPER_ARGS(dbg, "(0x%02x)", value);
     usb_dev.control_msg(REQUEST_TYPE_OUT, REQUEST_REGISTER, GPIO_OUTPUT_ENABLE, INDEX, 1, &value);
@@ -461,10 +441,10 @@ void CommandSetGl646::init_regs_for_scan_session(Genesys_Device* dev, const Gene
 
     debug_dump(DBG_info, sensor);
 
-    uint32_t move = session.params.starty;
+    std::uint32_t move = session.params.starty;
 
   Motor_Master *motor = nullptr;
-  uint32_t z1, z2;
+    std::uint32_t z1, z2;
   int feedl;
 
 
@@ -605,7 +585,9 @@ void CommandSetGl646::init_regs_for_scan_session(Genesys_Device* dev, const Gene
     }
 
   /* true CIS gray if needed */
-    if (dev->model->is_cis && session.params.channels == 1 && dev->settings.true_gray) {
+    if (dev->model->is_cis && session.params.channels == 1 &&
+        session.params.color_filter == ColorFilter::NONE)
+    {
         regs->find_reg(0x05).value |= REG_0x05_LEDADD;
     } else {
         regs->find_reg(0x05).value &= ~REG_0x05_LEDADD;
@@ -836,7 +818,8 @@ void CommandSetGl646::init_regs_for_scan_session(Genesys_Device* dev, const Gene
     dev->session = session;
 
     dev->total_bytes_read = 0;
-    dev->total_bytes_to_read = session.output_line_bytes_requested * session.params.lines;
+    dev->total_bytes_to_read = (size_t) session.output_line_bytes_requested
+          * (size_t) session.params.lines;
 
     /* select color filter based on settings */
     regs->find_reg(0x04).value &= ~REG_0x04_FILTER;
@@ -1042,7 +1025,7 @@ gl646_init_regs (Genesys_Device * dev)
 }
 
 // Set values of Analog Device type frontend
-static void gl646_set_ad_fe(Genesys_Device* dev, uint8_t set)
+static void gl646_set_ad_fe(Genesys_Device* dev, std::uint8_t set)
 {
     DBG_HELPER(dbg);
   int i;
@@ -1077,7 +1060,7 @@ static void gl646_set_ad_fe(Genesys_Device* dev, uint8_t set)
  * @param set action from AFE_SET, AFE_INIT and AFE_POWERSAVE
  * @param dpi resolution of the scan since it affects settings
  */
-static void gl646_wm_hp3670(Genesys_Device* dev, const Genesys_Sensor& sensor, uint8_t set,
+static void gl646_wm_hp3670(Genesys_Device* dev, const Genesys_Sensor& sensor, std::uint8_t set,
                             unsigned dpi)
 {
     DBG_HELPER(dbg);
@@ -1127,16 +1110,17 @@ static void gl646_wm_hp3670(Genesys_Device* dev, const Genesys_Sensor& sensor, u
  * @param set action to execute
  * @param dpi dpi to setup the AFE
  */
-static void gl646_set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor, uint8_t set, int dpi)
+static void gl646_set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor, std::uint8_t set,
+                         int dpi)
 {
     DBG_HELPER_ARGS(dbg, "%s,%d", set == AFE_INIT ? "init" :
                                   set == AFE_SET ? "set" :
                                   set == AFE_POWER_SAVE ? "powersave" : "huh?", dpi);
   int i;
-  uint8_t val;
+    std::uint8_t val;
 
   /* Analog Device type frontend */
-    uint8_t frontend_type = dev->reg.find_reg(0x04).value & REG_0x04_FESET;
+    std::uint8_t frontend_type = dev->reg.find_reg(0x04).value & REG_0x04_FESET;
     if (frontend_type == 0x02) {
         gl646_set_ad_fe(dev, set);
         return;
@@ -1222,7 +1206,8 @@ static void gl646_set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor, uint
  * @param dev device to set
  * @param set action to execute
  */
-void CommandSetGl646::set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor, uint8_t set) const
+void CommandSetGl646::set_fe(Genesys_Device* dev, const Genesys_Sensor& sensor,
+                             std::uint8_t set) const
 {
     gl646_set_fe(dev, sensor, set, dev->settings.yres);
 }
@@ -1707,6 +1692,8 @@ void CommandSetGl646::move_back_home(Genesys_Device* dev, bool wait_until_home) 
     session.params.scan_method = dev->model->default_method;
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = ColorFilter::RED;
+    session.params.contrast_adjustment = dev->settings.contrast;
+    session.params.brightness_adjustment = dev->settings.brightness;
     session.params.flags = ScanFlag::REVERSE |
                            ScanFlag::AUTO_GO_HOME |
                            ScanFlag::DISABLE_GAMMA;
@@ -1823,6 +1810,8 @@ void CommandSetGl646::init_regs_for_shading(Genesys_Device* dev, const Genesys_S
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = dev->settings.color_filter;
+    session.params.contrast_adjustment = dev->settings.contrast;
+    session.params.brightness_adjustment = dev->settings.brightness;
     session.params.flags = ScanFlag::DISABLE_SHADING |
                            ScanFlag::DISABLE_GAMMA |
                            ScanFlag::IGNORE_COLOR_OFFSET |
@@ -1869,10 +1858,7 @@ void CommandSetGl646::send_gamma_table(Genesys_Device* dev, const Genesys_Sensor
       bits = 12;
     }
 
-  /* allocate temporary gamma tables: 16 bits words, 3 channels */
-  std::vector<uint8_t> gamma(size * 2 * 3);
-
-    sanei_genesys_generate_gamma_buffer(dev, sensor, bits, size-1, size, gamma.data());
+    auto gamma = generate_gamma_buffer(dev, sensor, bits, size-1, size);
 
   /* table address */
   switch (dev->reg.find_reg(0x05).value >> 6)
@@ -1907,7 +1893,7 @@ SensorExposure CommandSetGl646::led_calibration(Genesys_Device* dev, const Genes
   int val;
   int avg[3], avga, avge;
   int turn;
-  uint16_t expr, expg, expb;
+    std::uint16_t expr, expg, expb;
 
     unsigned channels = dev->settings.get_channels();
 
@@ -1931,6 +1917,8 @@ SensorExposure CommandSetGl646::led_calibration(Genesys_Device* dev, const Genes
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = scan_mode;
     session.params.color_filter = ColorFilter::RED;
+    session.params.contrast_adjustment = dev->settings.contrast;
+    session.params.brightness_adjustment = dev->settings.brightness;
     session.params.flags = ScanFlag::DISABLE_SHADING;
     if (dev->settings.scan_method == ScanMethod::TRANSPARENCY) {
         session.params.flags |= ScanFlag::USE_XPA;
@@ -1940,7 +1928,7 @@ SensorExposure CommandSetGl646::led_calibration(Genesys_Device* dev, const Genes
     // colors * bytes_per_color * scan lines
     unsigned total_size = pixels * channels * 2 * 1;
 
-  std::vector<uint8_t> line(total_size);
+    std::vector<std::uint8_t> line(total_size);
 
 /*
    we try to get equal bright leds here:
@@ -2035,13 +2023,12 @@ SensorExposure CommandSetGl646::led_calibration(Genesys_Device* dev, const Genes
 /**
  * average dark pixels of a scan
  */
-static int
-dark_average (uint8_t * data, unsigned int pixels, unsigned int lines,
-	      unsigned int channels, unsigned int black)
+static int dark_average(std::uint8_t * data, unsigned int pixels, unsigned int lines,
+                        unsigned int channels, unsigned int black)
 {
   unsigned int i, j, k, average, count;
   unsigned int avg[3];
-  uint8_t val;
+    std::uint8_t val;
 
   /* computes average value on black margin */
   for (k = 0; k < channels; k++)
@@ -2110,6 +2097,8 @@ static void ad_fe_offset_calibration(Genesys_Device* dev, const Genesys_Sensor& 
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = ColorFilter::RED;
+    session.params.contrast_adjustment = dev->settings.contrast;
+    session.params.brightness_adjustment = dev->settings.brightness;
     session.params.flags = ScanFlag::DISABLE_SHADING;
     if (dev->settings.scan_method == ScanMethod::TRANSPARENCY) {
         session.params.flags |= ScanFlag::USE_XPA;
@@ -2121,7 +2110,7 @@ static void ad_fe_offset_calibration(Genesys_Device* dev, const Genesys_Sensor& 
   dev->frontend.set_gain(1, 0);
   dev->frontend.set_gain(2, 0);
 
-  std::vector<uint8_t> line;
+    std::vector<std::uint8_t> line;
 
   /* scan with no move */
   bottom = 1;
@@ -2222,6 +2211,8 @@ void CommandSetGl646::offset_calibration(Genesys_Device* dev, const Genesys_Sens
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = ColorFilter::RED;
+    session.params.contrast_adjustment = dev->settings.contrast;
+    session.params.brightness_adjustment = dev->settings.brightness;
     session.params.flags = ScanFlag::DISABLE_SHADING;
     if (dev->settings.scan_method == ScanMethod::TRANSPARENCY) {
         session.params.flags |= ScanFlag::USE_XPA;
@@ -2240,7 +2231,7 @@ void CommandSetGl646::offset_calibration(Genesys_Device* dev, const Genesys_Sens
   dev->frontend.set_offset(1, bottom);
   dev->frontend.set_offset(2, bottom);
 
-  std::vector<uint8_t> first_line, second_line;
+    std::vector<std::uint8_t> first_line, second_line;
 
     dev->cmd_set->init_regs_for_scan_session(dev, sensor, &dev->reg, session);
     simple_scan(dev, calib_sensor, session, false, first_line, "offset_first_line");
@@ -2373,6 +2364,8 @@ void CommandSetGl646::coarse_gain_calibration(Genesys_Device* dev, const Genesys
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = ScanColorMode::COLOR_SINGLE_PASS;
     session.params.color_filter = ColorFilter::RED;
+    session.params.contrast_adjustment = dev->settings.contrast;
+    session.params.brightness_adjustment = dev->settings.brightness;
     session.params.flags = ScanFlag::DISABLE_SHADING;
     if (dev->settings.scan_method == ScanMethod::TRANSPARENCY) {
         session.params.flags |= ScanFlag::USE_XPA;
@@ -2390,7 +2383,7 @@ void CommandSetGl646::coarse_gain_calibration(Genesys_Device* dev, const Genesys
 
     unsigned pass = 0;
 
-  std::vector<uint8_t> line;
+    std::vector<std::uint8_t> line;
 
   /* loop until each channel raises to acceptable level */
     while (((average[0] < calib_sensor.gain_white_ref) ||
@@ -2485,6 +2478,8 @@ void CommandSetGl646::init_regs_for_warmup(Genesys_Device* dev, const Genesys_Se
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = ScanColorMode::GRAY;
     session.params.color_filter =  ColorFilter::RED;
+    session.params.contrast_adjustment = 0;
+    session.params.brightness_adjustment = 0;
     session.params.flags = ScanFlag::DISABLE_SHADING |
                            ScanFlag::DISABLE_GAMMA;
     if (dev->settings.scan_method == ScanMethod::TRANSPARENCY) {
@@ -2517,8 +2512,8 @@ void CommandSetGl646::init(Genesys_Device* dev) const
     DBG_INIT();
     DBG_HELPER(dbg);
 
-    uint8_t val = 0;
-  uint32_t addr = 0xdead;
+    std::uint8_t val = 0;
+    std::uint32_t addr = 0xdead;
   size_t len;
 
     // to detect real power up condition, we write to REG_0x41 with pwrbit set, then read it back.
@@ -2648,7 +2643,7 @@ void CommandSetGl646::init(Genesys_Device* dev) const
 
 static void simple_scan(Genesys_Device* dev, const Genesys_Sensor& sensor,
                         const ScanSession& session, bool move,
-                        std::vector<uint8_t>& data, const char* scan_identifier)
+                        std::vector<std::uint8_t>& data, const char* scan_identifier)
 {
     unsigned lines = session.output_line_count;
     if (!dev->model->is_cis) {
@@ -2700,7 +2695,7 @@ static void simple_scan(Genesys_Device* dev, const Genesys_Sensor& sensor,
     if (dev->model->is_cis && session.params.scan_mode == ScanColorMode::COLOR_SINGLE_PASS) {
         auto pixels_count = session.params.pixels;
 
-        std::vector<uint8_t> buffer(pixels_count * 3 * bpp);
+        std::vector<std::uint8_t> buffer(pixels_count * 3 * bpp);
 
         if (bpp == 1) {
             for (unsigned y = 0; y < lines; y++) {
@@ -2743,7 +2738,7 @@ void CommandSetGl646::update_hardware_sensors(Genesys_Scanner* session) const
 {
     DBG_HELPER(dbg);
   Genesys_Device *dev = session->dev;
-  uint8_t value;
+    std::uint8_t value;
 
     // do what is needed to get a new set of events, but try to not loose any of them.
     gl646_gpio_read(dev->interface->get_usb_device(), &value);
@@ -2863,8 +2858,8 @@ void CommandSetGl646::update_home_sensor_gpio(Genesys_Device& dev) const
 static void write_control(Genesys_Device* dev, const Genesys_Sensor& sensor, int resolution)
 {
     DBG_HELPER(dbg);
-  uint8_t control[4];
-  uint32_t addr = 0xdead;
+    std::uint8_t control[4];
+    std::uint32_t addr = 0xdead;
 
   /* 2300 does not write to 'control' */
     if (dev->model->motor_id == MotorId::HP2300) {
@@ -2966,6 +2961,8 @@ ScanSession CommandSetGl646::calculate_scan_session(const Genesys_Device* dev,
     session.params.scan_method = dev->settings.scan_method;
     session.params.scan_mode = settings.scan_mode;
     session.params.color_filter = settings.color_filter;
+    session.params.contrast_adjustment = settings.contrast;
+    session.params.brightness_adjustment = settings.brightness;
     session.params.flags = ScanFlag::AUTO_GO_HOME;
     if (settings.scan_method == ScanMethod::TRANSPARENCY) {
         session.params.flags |= ScanFlag::USE_XPA;

@@ -1,84 +1,194 @@
 Description: Correct source typos
-Author: Jörg Frings-Fürst <debian@jff-webhosting.net>
+Author: Jörg Frings-Fürst <debian@jff.email>
 Forwarded: not-needed
-Last-Update: 2019-04-28
+Last-Update: 2022-02-04
 ----
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
-Index: trunk/doc/sane-epjitsu.man
+Index: trunk/backend/epsonds-jpeg.c
 ===================================================================
---- trunk.orig/doc/sane-epjitsu.man
-+++ trunk/doc/sane-epjitsu.man
-@@ -42,7 +42,7 @@ Scanners can be specified in the configu
- .PP
- "usb 0x04c5 0x10c7" (or other vendor/product ids)
- .RS
--Requests backend to search all usb busses in the system for a device which uses that vendor and product id. The device will then be queried to determine if it is a supported scanner.
-+Requests backend to search all usb buses in the system for a device which uses that vendor and product id. The device will then be queried to determine if it is a supported scanner.
- .RE
- .PP
- "usb /dev/usb/scanner0" (or other device file)
-Index: trunk/backend/apple.c
+--- trunk.orig/backend/epsonds-jpeg.c
++++ trunk/backend/epsonds-jpeg.c
+@@ -194,7 +194,7 @@ void eds_decode_jpeg(epsonds_scanner*s,
+ 				}
+ 			}
+         }
+-		DBG(10,"decodded lines = %d\n", sum);
++		DBG(10,"decoded lines = %d\n", sum);
+ 
+ 		// abandon unncessary data
+ 		if ((JDIMENSION)sum < jpeg_cinfo.output_height)
+Index: trunk/frontend/jpegtopdf.c
 ===================================================================
---- trunk.orig/backend/apple.c
-+++ trunk/backend/apple.c
-@@ -1546,7 +1546,7 @@ init_options (Apple_Scanner * s)
-   /* Use volt_ref */
-   s->opt[OPT_VOLT_REF].name = "volt-ref";
-   s->opt[OPT_VOLT_REF].title = "Volt Reference";
--  s->opt[OPT_VOLT_REF].desc ="It's brightness equivalant.";
-+  s->opt[OPT_VOLT_REF].desc ="It's brightness equivalent.";
-   s->opt[OPT_VOLT_REF].type = SANE_TYPE_BOOL;
-   if (s->hw->ScannerModel!=COLORONESCANNER)
-     s->opt[OPT_VOLT_REF].cap |= SANE_CAP_INACTIVE;
-Index: trunk/tools/umax_pp.c
-===================================================================
---- trunk.orig/tools/umax_pp.c
-+++ trunk/tools/umax_pp.c
-@@ -374,10 +374,10 @@ main (int argc, char **argv)
-       if (sanei_umax_pp_initPort (port, name) != 1)
- 	{
- 	  if (port)
--	    fprintf (stderr, "failed to gain direct acces to port 0x%X!\n",
-+	    fprintf (stderr, "failed to gain direct access to port 0x%X!\n",
- 		     port);
- 	  else
--	    fprintf (stderr, "failed to gain acces to device %s!\n", name);
-+	    fprintf (stderr, "failed to gain access to device %s!\n", name);
- 	  return 0;
+--- trunk.orig/frontend/jpegtopdf.c
++++ trunk/frontend/jpegtopdf.c
+@@ -289,7 +289,7 @@ SANE_Int sane_pdf_start_doc( void *pw )
+ 		goto EXIT;
  	}
-     }
-Index: trunk/doc/saned.man
-===================================================================
---- trunk.orig/doc/saned.man
-+++ trunk/doc/saned.man
-@@ -254,7 +254,7 @@ to the systemd journal. The systemd supp
- requires compilation with the systemd-devel package
- installed on the system. this is the preferred option.
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
  
--Saned can be used wih systemd without the systemd integration
-+Saned can be used with systemd without the systemd integration
- compiled in, but then logging of debug information is not supported.
+@@ -330,7 +330,7 @@ SANE_Int sane_pdf_end_doc( void *pw )
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
  
- The systemd configuration is different for the 2 options, so
-Index: trunk/doc/sane-pixma.man
-===================================================================
---- trunk.orig/doc/sane-pixma.man
-+++ trunk/doc/sane-pixma.man
-@@ -328,7 +328,7 @@ This will cause all further statements i
- .IP -
- A line that contains
- .B auto_detection=no
--will cause auto-detection to be skipped. Explicitely defined network scanners will still be probed.
-+will cause auto-detection to be skipped. Explicitly defined network scanners will still be probed.
- .SH USB SUPPORT
- USB scanners will be auto-detected and require no configuration.
- .SH NETWORKING SUPPORT
-@@ -358,7 +358,7 @@ common subnet for scanning.
- .PP
- Scanner detection is slightly more complicated. The pixma backend sends
- a broadcast on all direct connected subnets it can find (provided your OS
--allows for enumeration of all netowrk interfaces). The broadcast is sent FROM
-+allows for enumeration of all network interfaces). The broadcast is sent FROM
- port 8612 TO port 8610 or 8612 on the broadcast address of each interface.
- The outgoing packets will be allowed by the rule described above.
- .PP
+@@ -350,7 +350,7 @@ SANE_Int sane_pdf_end_doc( void *pw )
+ 			goto EXIT;
+ 		}
+ 		if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-			fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++			fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 			goto EXIT;
+ 		}
+ 
+@@ -364,7 +364,7 @@ SANE_Int sane_pdf_end_doc( void *pw )
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
+ 
+@@ -380,7 +380,7 @@ SANE_Int sane_pdf_end_doc( void *pw )
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
+ 
+@@ -390,7 +390,7 @@ SANE_Int sane_pdf_end_doc( void *pw )
+ 		goto EXIT;
+ 	}
+ 	if ( _get_current_time( &tm, &sign_c, &tz_h, &tz_m ) == SANE_ERR ) {
+-		fprintf ( stderr, " Error is occured in _get_current_time.\n" );
++		fprintf ( stderr, " Error is occurred in _get_current_time.\n" );
+ 		goto EXIT;
+ 	}
+ 	/* Dates format */
+@@ -408,7 +408,7 @@ SANE_Int sane_pdf_end_doc( void *pw )
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
+ 
+@@ -424,7 +424,7 @@ SANE_Int sane_pdf_end_doc( void *pw )
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
+ 
+@@ -438,7 +438,7 @@ SANE_Int sane_pdf_end_doc( void *pw )
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
+ 	w_count += SANE_PDF_FIRST_PAGE_ID - 1;
+@@ -454,7 +454,7 @@ SANE_Int sane_pdf_end_doc( void *pw )
+ 				goto EXIT;
+ 			}
+ 			if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-				fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++				fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 				goto EXIT;
+ 			}
+ 			w_count ++;
+@@ -476,7 +476,7 @@ SANE_Int sane_pdf_end_doc( void *pw )
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
+ 
+@@ -572,7 +572,7 @@ SANE_Int sane_pdf_start_page(
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
+ 
+@@ -590,7 +590,7 @@ SANE_Int sane_pdf_start_page(
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
+ 	/* write Contents(2) */
+@@ -602,7 +602,7 @@ SANE_Int sane_pdf_start_page(
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
+ 
+@@ -613,7 +613,7 @@ SANE_Int sane_pdf_start_page(
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
+ 
+@@ -631,7 +631,7 @@ SANE_Int sane_pdf_start_page(
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
+ 
+@@ -652,7 +652,7 @@ SANE_Int sane_pdf_start_page(
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
+ 
+@@ -684,7 +684,7 @@ SANE_Int sane_pdf_end_page( void *pw )
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
+ 
+@@ -702,7 +702,7 @@ SANE_Int sane_pdf_end_page( void *pw )
+ 		goto EXIT;
+ 	}
+ 	if ( ( ldata = re_write_if_fail( pwork->fd, str, len ) ) < 0 ) {
+-		fprintf ( stderr, " Error is occured in re_write_if_fail.\n" );
++		fprintf ( stderr, " Error is occurred in re_write_if_fail.\n" );
+ 		goto EXIT;
+ 	}
+ 
