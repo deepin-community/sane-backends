@@ -16,27 +16,6 @@
 
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-   As a special exception, the authors of SANE give permission for
-   additional uses of the libraries contained in this release of SANE.
-
-   The exception is that, if you link a SANE library with other files
-   to produce an executable, this does not by itself cause the
-   resulting executable to be covered by the GNU General Public
-   License.  Your use of that executable is in no way restricted on
-   account of linking the SANE library code into it.
-
-   This exception does not, however, invalidate any other reasons why
-   the executable file might be covered by the GNU General Public
-   License.
-
-   If you submit changes to SANE to the maintainers to be included in
-   a subsequent release, you agree by submitting the changes that
-   those changes may be distributed with this exception intact.
-
-   If you write modifications of your own for SANE, it is your choice
-   whether to permit this exception to apply to your modifications.
-   If you do not wish that, delete this exception notice.
 */
 
 #define DEBUG_DECLARE_ONLY
@@ -194,7 +173,7 @@ ImagePipelineNodeDesegment::ImagePipelineNodeDesegment(ImagePipelineNode& source
     std::iota(segment_order_.begin(), segment_order_.end(), 0);
 }
 
-bool ImagePipelineNodeDesegment::get_next_row_data(uint8_t* out_data)
+bool ImagePipelineNodeDesegment::get_next_row_data(std::uint8_t* out_data)
 {
     bool got_data = true;
 
@@ -304,8 +283,8 @@ bool ImagePipelineNodeInvert::get_next_row_data(std::uint8_t* out_data)
     return got_data;
 }
 
-ImagePipelineNodeMergeMonoLines::ImagePipelineNodeMergeMonoLines(ImagePipelineNode& source,
-                                                                 ColorOrder color_order) :
+ImagePipelineNodeMergeMonoLinesToColor::ImagePipelineNodeMergeMonoLinesToColor(
+        ImagePipelineNode& source, ColorOrder color_order) :
     source_(source),
     buffer_(source_.get_row_bytes())
 {
@@ -314,7 +293,7 @@ ImagePipelineNodeMergeMonoLines::ImagePipelineNodeMergeMonoLines(ImagePipelineNo
     output_format_ = get_output_format(source_.get_format(), color_order);
 }
 
-bool ImagePipelineNodeMergeMonoLines::get_next_row_data(std::uint8_t* out_data)
+bool ImagePipelineNodeMergeMonoLinesToColor::get_next_row_data(std::uint8_t* out_data)
 {
     bool got_data = true;
 
@@ -341,8 +320,8 @@ bool ImagePipelineNodeMergeMonoLines::get_next_row_data(std::uint8_t* out_data)
     return got_data;
 }
 
-PixelFormat ImagePipelineNodeMergeMonoLines::get_output_format(PixelFormat input_format,
-                                                               ColorOrder order)
+PixelFormat ImagePipelineNodeMergeMonoLinesToColor::get_output_format(PixelFormat input_format,
+                                                                      ColorOrder order)
 {
     switch (input_format) {
         case PixelFormat::I1: {
@@ -415,6 +394,75 @@ PixelFormat ImagePipelineNodeSplitMonoLines::get_output_format(PixelFormat input
         default: break;
     }
     throw SaneException("Unsupported input format %d", static_cast<unsigned>(input_format));
+}
+
+
+ImagePipelineNodeMergeColorToGray::ImagePipelineNodeMergeColorToGray(ImagePipelineNode& source) :
+    source_(source)
+{
+
+    output_format_ = get_output_format(source_.get_format());
+    float red_mult = 0.2125f;
+    float green_mult = 0.7154f;
+    float blue_mult = 0.0721f;
+
+    switch (get_pixel_format_color_order(source_.get_format())) {
+        case ColorOrder::RGB: {
+            ch0_mult_ = red_mult;
+            ch1_mult_ = green_mult;
+            ch2_mult_ = blue_mult;
+            break;
+        }
+        case ColorOrder::BGR: {
+            ch0_mult_ = blue_mult;
+            ch1_mult_ = green_mult;
+            ch2_mult_ = red_mult;
+            break;
+        }
+        case ColorOrder::GBR: {
+            ch0_mult_ = green_mult;
+            ch1_mult_ = blue_mult;
+            ch2_mult_ = red_mult;
+            break;
+        }
+        default:
+            throw SaneException("Unknown color order");
+    }
+    temp_buffer_.resize(source_.get_row_bytes());
+}
+
+bool ImagePipelineNodeMergeColorToGray::get_next_row_data(std::uint8_t* out_data)
+{
+    auto* src_data = temp_buffer_.data();
+
+    bool got_data = source_.get_next_row_data(src_data);
+
+    auto src_format = source_.get_format();
+
+    for (std::size_t x = 0, width = get_width(); x < width; ++x) {
+        std::uint16_t ch0 = get_raw_channel_from_row(src_data, x, 0, src_format);
+        std::uint16_t ch1 = get_raw_channel_from_row(src_data, x, 1, src_format);
+        std::uint16_t ch2 = get_raw_channel_from_row(src_data, x, 2, src_format);
+        float mono = ch0 * ch0_mult_ + ch1 * ch1_mult_ + ch2 * ch2_mult_;
+        set_raw_channel_to_row(out_data, x, 0, static_cast<std::uint16_t>(mono), output_format_);
+    }
+    return got_data;
+}
+
+PixelFormat ImagePipelineNodeMergeColorToGray::get_output_format(PixelFormat input_format)
+{
+    switch (input_format) {
+        case PixelFormat::RGB111:
+            return PixelFormat::I1;
+        case PixelFormat::RGB888:
+        case PixelFormat::BGR888:
+            return PixelFormat::I8;
+        case PixelFormat::RGB161616:
+        case PixelFormat::BGR161616:
+            return PixelFormat::I16;
+        default: break;
+    }
+    throw SaneException("Unsupported format %d", static_cast<unsigned>(input_format));
 }
 
 ImagePipelineNodeComponentShiftLines::ImagePipelineNodeComponentShiftLines(
@@ -712,7 +760,7 @@ ImagePipelineNodeCalibrate::ImagePipelineNodeCalibrate(ImagePipelineNode& source
                                                        const std::vector<std::uint16_t>& bottom,
                                                        const std::vector<std::uint16_t>& top,
                                                        std::size_t x_start) :
-    source_{source}
+    source_(source)
 {
     std::size_t size = 0;
     if (bottom.size() >= x_start && top.size() >= x_start) {

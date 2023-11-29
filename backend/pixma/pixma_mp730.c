@@ -76,6 +76,8 @@
 #define MP740_PID 0x264c	/* Untested */
 #define MP710_PID 0x264d
 
+#define MF5630_PID 0x264e	/* Untested */
+#define MF5650_PID 0x264f
 #define MF5730_PID 0x265d	/* Untested */
 #define MF5750_PID 0x265e	/* Untested */
 #define MF5770_PID 0x265f
@@ -318,6 +320,8 @@ handle_interrupt (pixma_t * s, int timeout)
     case MP370_PID:
     case MP375R_PID:
     case MP390_PID:
+    case MF5630_PID:
+    case MF5650_PID:
     case MF5730_PID:
     case MF5750_PID:
     case MF5770_PID:
@@ -372,6 +376,8 @@ has_ccd_sensor (pixma_t * s)
           s->cfg->pid == MP370_PID ||
           s->cfg->pid == MP375R_PID ||
           s->cfg->pid == MP390_PID ||
+          s->cfg->pid == MF5630_PID ||
+          s->cfg->pid == MF5650_PID ||
           s->cfg->pid == MF5730_PID ||
           s->cfg->pid == MF5750_PID ||
           s->cfg->pid == MF5770_PID);
@@ -415,6 +421,8 @@ step1 (pixma_t * s)
     {
       switch (s->cfg->pid)
         {
+          case MF5630_PID:
+          case MF5650_PID:
           case MF5730_PID:
           case MF5750_PID:
           case MF5770_PID:
@@ -424,10 +432,10 @@ step1 (pixma_t * s)
                 int tmo = 10;  /* like Windows driver, 10 sec CCD calibration ? */
                 while (--tmo >= 0)
                   {
-                    error = handle_interrupt (s, 1000);		\
-                    if (s->cancel)				\
-                      return PIXMA_ECANCELED;			\
-                    if (error != PIXMA_ECANCELED && error < 0)	\
+                    error = handle_interrupt (s, 1000);
+                    if (s->cancel)
+                      return PIXMA_ECANCELED;
+                    if (error != PIXMA_ECANCELED && error < 0)
                       return error;
                     PDBG (pixma_dbg (2, "CCD Calibration ends in %d sec.\n", tmo));
                   }
@@ -443,6 +451,8 @@ step1 (pixma_t * s)
 
       switch (s->cfg->pid)
         {
+          case MF5630_PID:
+          case MF5650_PID:
           case MF5730_PID:
           case MF5750_PID:
           case MF5770_PID:
@@ -696,6 +706,8 @@ mp730_fill_buffer (pixma_t * s, pixma_imagebuf_t * ib)
       if (n != 0)
 	{
 	  if (s->param->channels != 1    &&
+	      s->cfg->pid != MF5630_PID  &&
+	      s->cfg->pid != MF5650_PID  &&
 	      s->cfg->pid != MF5730_PID  &&
 	      s->cfg->pid != MF5750_PID  &&
 	      s->cfg->pid != MF5770_PID  &&
@@ -751,7 +763,9 @@ mp730_finish_scan (pixma_t * s)
           (s->param->source == PIXMA_SOURCE_ADF ||
            s->param->source == PIXMA_SOURCE_ADFDUP) &&
            has_paper (s) &&
-           (s->cfg->pid == MF5730_PID ||
+           (s->cfg->pid == MF5630_PID ||
+            s->cfg->pid == MF5650_PID ||
+            s->cfg->pid == MF5730_PID ||
             s->cfg->pid == MF5750_PID ||
             s->cfg->pid == MF5770_PID ||
             s->cfg->pid == IR1020_PID))
@@ -833,6 +847,8 @@ const pixma_config_t pixma_mp730_devices[] = {
   DEVICE ("PIXMA MP730", "MP730", MP730_PID, 1200, 637, 868, PIXMA_CAP_ADF | PIXMA_CAP_LINEART),
   DEVICE ("PIXMA MP740", "MP740", MP740_PID, 1200, 637, 868, PIXMA_CAP_ADF | PIXMA_CAP_LINEART),
 
+  DEVICE ("Canon imageCLASS MF5630", "MF5630", MF5630_PID, 1200, 636, 868, PIXMA_CAP_ADF),
+  DEVICE ("Canon laserBase MF5650", "MF5650", MF5650_PID, 1200, 636, 868, PIXMA_CAP_ADF),
   DEVICE ("Canon imageCLASS MF5730", "MF5730", MF5730_PID, 1200, 636, 868, PIXMA_CAP_ADF),
   DEVICE ("Canon imageCLASS MF5750", "MF5750", MF5750_PID, 1200, 636, 868, PIXMA_CAP_ADF),
   DEVICE ("Canon imageCLASS MF5770", "MF5770", MF5770_PID, 1200, 636, 868, PIXMA_CAP_ADF),

@@ -86,7 +86,7 @@
 #define MAX_SCANNERS 32
 
 /* version number */
-#define DRIVER_VERSION SANE_VERSION_CODE( SANE_CURRENT_MAJOR, V_MINOR, 0 )
+#define DRIVER_VERSION SANE_VERSION_CODE( SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, 0 )
 
 /* size of buffer for socket communication */
 #define SOCK_BUF_SIZE 2048
@@ -946,7 +946,7 @@ HexDump (int debugLevel, const unsigned char *buf, size_t bufSize)
     {
 
       if (!(i % 16))
-        sprintf (lineBuf, "%p: ", (buf + i));
+        sprintf (lineBuf, "%p: ", (void *) &buf[i]);
 
       sprintf (itemBuf, "%02x ", (const unsigned int) buf[i]);
 
@@ -1199,7 +1199,7 @@ ProcessFindResponse (unsigned char *pData, size_t size)
 
 
   DBG (10, "ProcessFindResponse: processing %lu bytes, pData=%p\n",
-       (unsigned long)size, pData);
+       (unsigned long) size, (void *) pData);
 
   /* check we have a complete packet */
   if (!MessageIsComplete (pData, size))
@@ -1355,7 +1355,7 @@ ProcessUdpResponse (unsigned char *pData, size_t size,
   HexDump (15, pData, size);
 
   DBG (10, "ProcessUdpResponse: processing %lu bytes, pData=%p\n",
-       (unsigned long)size, pData);
+       (unsigned long) size, (void *) pData);
 
   /* check we have a complete packet */
   if (!MessageIsComplete (pData, size))
@@ -1486,7 +1486,7 @@ ProcessTcpResponse (struct ScannerState *pState, struct ComBuf *pTcpBuf)
   int bProcessImage = 0;
 
   DBG (10, "ProcessTcpResponse: processing %lu bytes, pData=%p\n",
-       (unsigned long)pTcpBuf->m_used, pData);
+       (unsigned long) pTcpBuf->m_used, (void *) pData);
   HexDump (15, pData, pTcpBuf->m_used);
 
   /* if message not complete then wait for more to arrive */
@@ -1799,7 +1799,7 @@ ProcessPageData (struct ScannerState *pState)
   struct PageInfo pageInfo;
 
   JSAMPLE *pJpegLine = NULL;
-  uint32 *pTiffRgba = NULL;
+  uint32_t *pTiffRgba = NULL;
   unsigned char *pOut;
   char tiffErrBuf[1024];
 

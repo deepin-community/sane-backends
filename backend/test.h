@@ -98,11 +98,12 @@ typedef enum
   opt_int_constraint_word_list,
   opt_int_array,
   opt_int_array_constraint_range,
+  opt_int_array_constraint_word_list,
+  opt_int_inexact,
   opt_gamma_red,
   opt_gamma_green,
   opt_gamma_blue,
   opt_gamma_all,
-  opt_int_array_constraint_word_list,
   opt_fixed_group,
   opt_fixed,
   opt_fixed_constraint_range,
@@ -136,7 +137,7 @@ typedef struct Test_Device
   SANE_Word bytes_per_line;
   SANE_Word pixels_per_line;
   SANE_Word lines;
-  SANE_Int bytes_total;
+  size_t bytes_total;
   SANE_Bool open;
   SANE_Bool scanning;
   SANE_Bool cancelled;

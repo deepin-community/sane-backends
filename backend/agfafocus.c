@@ -236,8 +236,8 @@ test_ready (int fd)
 static SANE_Status
 sense_handler (int scsi_fd, u_char *result, void *arg)
 {
-  scsi_fd = scsi_fd;			/* silence gcc */
-  arg = arg;					/* silence gcc */
+  (void) scsi_fd;			/* silence gcc */
+  (void) arg;				/* silence gcc */
 
   if (result[0])
     {
@@ -253,7 +253,7 @@ sense_handler (int scsi_fd, u_char *result, void *arg)
 static SANE_Status
 stop_scan (int fd)
 {
-  fd = fd;						/* silence gcc */
+  (void) fd;				/* silence gcc */
 
   /* XXX don't know how to stop the scanner. To be tested ! */
 #if 0
@@ -1280,14 +1280,14 @@ sane_init (SANE_Int * version_code, SANE_Auth_Callback authorize)
   size_t len;
   FILE *fp;
 
-  authorize = authorize;		/* silence gcc */
+  (void) authorize;			/* silence gcc */
 
   DBG_INIT ();
 
   sanei_thread_init ();
 
   if (version_code)
-    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, 0);
+    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, 0);
 
   fp = sanei_config_open ("agfafocus.conf");
   if (!fp)
@@ -1335,7 +1335,7 @@ sane_get_devices (const SANE_Device *** device_list, SANE_Bool local_only)
   AgfaFocus_Device *dev;
   int i;
 
-  local_only = local_only;		/* silence gcc */
+  (void) local_only;			/* silence gcc */
 
   if (devlist)
     free (devlist);

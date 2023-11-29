@@ -1,0 +1,121 @@
+# Mesajele în limba română pentru pachetul sane-backends.
+# Romanian translation of sane-backends.
+# Copyright © 2023 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the sane-backends package.
+#
+# Remus-Gabriel Chelu <remusgabriel.chelu@disroot.org>, 2023.
+#
+# Cronologia traducerii fișierului „sane-backends”:
+# Traducerea inițială, făcută de R-GC, pentru versiunea sane-backends 1.2.1-1(2009-12-12).
+# Actualizare a traducerii pentru versiunea Y, făcută de X, Y(anul).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: sane-backends 1.2.1-1\n"
+"Report-Msgid-Bugs-To: sane-backends@packages.debian.org\n"
+"POT-Creation-Date: 2009-12-12 13:14+0100\n"
+"PO-Revision-Date: 2023-03-26 10:13+0200\n"
+"Last-Translator: Remus-Gabriel Chelu <remusgabriel.chelu@disroot.org>\n"
+"Language-Team: Romanian <debian-l10n-romanian@lists.debian.org>\n"
+"Language: ro\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n==0 || (n!=1 && n%100>=1 && "
+"n%100<=19) ? 1 : 2);\n"
+"X-Bugs: Report translation errors to the Language-Team address.\n"
+"X-Generator: Poedit 3.2.2\n"
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:1001
+msgid "Enable saned as a standalone server?"
+msgstr ""
+"Doriți să activați «saned» ca server autonom, independent de superserver-ul "
+"«inetd»?"
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:1001
+msgid "The saned server, when enabled, makes scanners available over the network."
+msgstr ""
+"Serverul «saned», atunci când este activat, face ca scanerele să fie "
+"disponibile în rețea."
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:1001
+msgid ""
+"There are two ways of running saned:\n"
+" - as an inetd service, started by the inetd superserver. In this mode,\n"
+"saned is started on demand when a client connects to the server;\n"
+" - as a standalone daemon, started at system boot. In this mode, saned\n"
+"runs in the background all by itself and listens for client connections."
+msgstr ""
+"Există două moduri de a rula «saned»:\n"
+" - ca un serviciu „inetd”, pornit de superserverul «inetd». În acest mod,\n"
+"«saned» este pornit la cerere când un client se conectează la server;\n"
+" - ca un daemon autonom, început la pornirea sistemului. În acest mod,\n"
+"«saned» rulează în fundal de la sine și ascultă conexiunile clientului."
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:1001
+msgid ""
+"When run in standalone mode, saned advertises itself on the network and can be "
+"detected automatically by the SANE clients with no configuration on the client "
+"side. You still need to configure the server to accept connections from your "
+"clients. This feature is experimental and requires a running Avahi daemon."
+msgstr ""
+"Când rulează în modul de autonom, «saned» își anunță prezența în rețea și poate "
+"fi detectat automat de clienții SANE fără ca nicio configurare să fie necesară "
+"pentru aceștia. Cu toate acestea, trebuie să configurați serverul pentru a "
+"accepta conexiuni de la clienții din rețea. Această caracteristică este "
+"experimentală și necesită un demon Avahi care rulează."
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:1001
+msgid "Accept this option if you want to make use of this feature."
+msgstr ""
+"Dacă acceptați această opțiune, «saned» va fi lansat la pornirea sistemului."
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:2001
+msgid "Add saned user to the scanner group?"
+msgstr "Doriți să adăugați utilizatorul „saned” la grupul „scanner”?"
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:2001
+msgid ""
+"The saned server, when enabled, makes scanners available over the network. By "
+"applying different permissions to the different scanners connected to your "
+"machine, you can control which ones will be made available over the network."
+msgstr ""
+"Serverul «saned», atunci când este activat, face ca scanerele să fie "
+"disponibile în rețea. Aplicând diferite permisiuni, diferitelor scanere "
+"conectate la mașina dvs., puteți controla care dintre ele vor fi disponibile în "
+"rețea."
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:2001
+msgid ""
+"Read /usr/share/doc/sane-utils/README.Debian for details on how to manage "
+"permissions for saned. By default, saned is run under the saned user and group."
+msgstr ""
+"Citiți „/usr/share/doc/sane-utils/README.Debian” pentru detalii despre cum să "
+"gestionați permisiunile pentru «saned». În mod implicit, «saned» este rulat sub "
+"utilizatorul și grupul „saned”."
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:2001
+msgid ""
+"Accept this option if you want to make all your scanners available over the "
+"network without restriction."
+msgstr ""
+"Acceptați această opțiune dacă doriți să faceți toate scanerele disponibile în "
+"rețea fără restricții."

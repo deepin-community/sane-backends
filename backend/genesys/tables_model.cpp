@@ -27,27 +27,6 @@
 
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-   As a special exception, the authors of SANE give permission for
-   additional uses of the libraries contained in this release of SANE.
-
-   The exception is that, if you link a SANE library with other files
-   to produce an executable, this does not by itself cause the
-   resulting executable to be covered by the GNU General Public
-   License.  Your use of that executable is in no way restricted on
-   account of linking the SANE library code into it.
-
-   This exception does not, however, invalidate any other reasons why
-   the executable file might be covered by the GNU General Public
-   License.
-
-   If you submit changes to SANE to the maintainers to be included in
-   a subsequent release, you agree by submitting the changes that
-   those changes may be distributed with this exception intact.
-
-   If you write modifications of your own for SANE, it is your choice
-   whether to permit this exception to apply to your modifications.
-   If you do not wish that, delete this exception notice.
 */
 
 #define DEBUG_DECLARE_ONLY
@@ -191,6 +170,7 @@ void genesys_init_usb_device_tables()
     model.gpio_id = GpioId::CANON_LIDE_35;
     model.motor_id = MotorId::CANON_LIDE_35;
     model.flags = ModelFlag::DARK_WHITE_CALIBRATION |
+                  ModelFlag::HOST_SIDE_GRAY |
                   ModelFlag::CUSTOM_GAMMA;
     model.buttons = GENESYS_HAS_SCAN_SW |
                     GENESYS_HAS_FILE_SW |
@@ -342,12 +322,12 @@ void genesys_init_usb_device_tables()
     model.is_sheetfed = false;
     model.sensor_id = SensorId::CCD_G4050;
     model.adc_id = AdcId::G4050;
-    model.gpio_id = GpioId::G4050;
+    model.gpio_id = GpioId::G4010;
     model.motor_id = MotorId::G4050;
     model.flags = ModelFlag::WARMUP |
                   ModelFlag::DARK_CALIBRATION |
                   ModelFlag::CUSTOM_GAMMA;
-    model.buttons = GENESYS_HAS_SCAN_SW | GENESYS_HAS_FILE_SW | GENESYS_HAS_COPY_SW;
+    model.buttons = GENESYS_HAS_SCAN_SW | GENESYS_HAS_FILE_SW | GENESYS_HAS_COPY_SW | GENESYS_HAS_TRANSP_SW;
     model.search_lines = 100;
 
     s_usb_devices->emplace_back(0x03f0, 0x4505, model);
@@ -467,7 +447,9 @@ void genesys_init_usb_device_tables()
                   ModelFlag::SHADING_REPARK |
                   ModelFlag::UTA_NO_SECONDARY_MOTOR;
 
-    model.buttons = GENESYS_HAS_SCAN_SW | GENESYS_HAS_FILE_SW | GENESYS_HAS_COPY_SW;
+    model.buttons = GENESYS_HAS_TRANSP_SW | GENESYS_HAS_EMAIL_SW
+        | GENESYS_HAS_COPY_SW | GENESYS_HAS_PDF1_SW | GENESYS_HAS_PDF2_SW
+        | GENESYS_HAS_PDF3_SW | GENESYS_HAS_PDF4_SW;
     model.search_lines = 100;
 
     s_usb_devices->emplace_back(0x04a9, 0x2228, model);
@@ -537,7 +519,7 @@ void genesys_init_usb_device_tables()
                   ModelFlag::DARK_CALIBRATION |
                   ModelFlag::CUSTOM_GAMMA |
                   ModelFlag::SHADING_REPARK;
-    model.buttons = GENESYS_HAS_SCAN_SW | GENESYS_HAS_FILE_SW | GENESYS_HAS_COPY_SW;
+    model.buttons = GENESYS_HAS_SCAN_SW | GENESYS_HAS_FILE_SW | GENESYS_HAS_COPY_SW | GENESYS_HAS_EMAIL_SW;
     model.search_lines = 100;
 
     s_usb_devices->emplace_back(0x04a9, 0x221e, model);
@@ -619,8 +601,8 @@ void genesys_init_usb_device_tables()
     model.resolutions = {
         {
             { ScanMethod::FLATBED },
-            { 2400, 1200, 600, 300, 200, 150, 100, 75 },
-            { 4800, 2400, 1200, 600, 300, 200, 150, 100, 75 },
+            { 2400, 1200, 600, 300, 200, 150 },
+            { 4800, 2400, 1200, 600, 300, 200, 150 },
         }
     };
 
@@ -947,7 +929,10 @@ void genesys_init_usb_device_tables()
     model.buttons = GENESYS_HAS_SCAN_SW |
                     GENESYS_HAS_COPY_SW |
                     GENESYS_HAS_EMAIL_SW |
-                    GENESYS_HAS_FILE_SW;
+                    GENESYS_HAS_PDF1_SW |
+                    GENESYS_HAS_PDF2_SW |
+                    GENESYS_HAS_PDF3_SW |
+                    GENESYS_HAS_PDF4_SW;
     model.search_lines = 400;
 
     s_usb_devices->emplace_back(0x04a9, 0x1906, model);
@@ -1020,8 +1005,8 @@ void genesys_init_usb_device_tables()
     model.resolutions = {
         {
             { ScanMethod::FLATBED },
-            { 4800, 2400, 1200, 600, 300, 200, 150, 100, 75 },
-            { 4800, 2400, 1200, 600, 300, 200, 150, 100, 75 },
+            { 4800, 2400, 1200, 600, 300, 200, 150 },
+            { 4800, 2400, 1200, 600, 300, 200, 150 },
         }
     };
 
@@ -1110,6 +1095,7 @@ void genesys_init_usb_device_tables()
     model.gpio_id = GpioId::CANON_LIDE_35;
     model.motor_id = MotorId::CANON_LIDE_60;
     model.flags = ModelFlag::DARK_WHITE_CALIBRATION |
+                  ModelFlag::HOST_SIDE_GRAY |
                   ModelFlag::CUSTOM_GAMMA;
 
     model.buttons = GENESYS_HAS_COPY_SW |
@@ -1165,6 +1151,7 @@ void genesys_init_usb_device_tables()
     model.gpio_id = GpioId::CANON_LIDE_80;
     model.motor_id = MotorId::CANON_LIDE_80;
     model.flags = ModelFlag::DARK_WHITE_CALIBRATION |
+                  ModelFlag::HOST_SIDE_GRAY |
                   ModelFlag::CUSTOM_GAMMA;
     model.buttons = GENESYS_HAS_SCAN_SW |
                     GENESYS_HAS_FILE_SW |

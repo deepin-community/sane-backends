@@ -16,27 +16,6 @@
 
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-   As a special exception, the authors of SANE give permission for
-   additional uses of the libraries contained in this release of SANE.
-
-   The exception is that, if you link a SANE library with other files
-   to produce an executable, this does not by itself cause the
-   resulting executable to be covered by the GNU General Public
-   License.  Your use of that executable is in no way restricted on
-   account of linking the SANE library code into it.
-
-   This exception does not, however, invalidate any other reasons why
-   the executable file might be covered by the GNU General Public
-   License.
-
-   If you submit changes to SANE to the maintainers to be included in
-   a subsequent release, you agree by submitting the changes that
-   those changes may be distributed with this exception intact.
-
-   If you write modifications of your own for SANE, it is your choice
-   whether to permit this exception to apply to your modifications.
-   If you do not wish that, delete this exception notice.
 */
 
 #ifndef BACKEND_GENESYS_IMAGE_PIPELINE_H
@@ -295,11 +274,11 @@ private:
 };
 
 // A pipeline node that merges 3 mono lines into a color channel
-class ImagePipelineNodeMergeMonoLines : public ImagePipelineNode
+class ImagePipelineNodeMergeMonoLinesToColor : public ImagePipelineNode
 {
 public:
-    ImagePipelineNodeMergeMonoLines(ImagePipelineNode& source,
-                                    ColorOrder color_order);
+    ImagePipelineNodeMergeMonoLinesToColor(ImagePipelineNode& source,
+                                           ColorOrder color_order);
 
     std::size_t get_width() const override { return source_.get_width(); }
     std::size_t get_height() const override { return source_.get_height() / 3; }
@@ -340,6 +319,33 @@ private:
 
     std::vector<std::uint8_t> buffer_;
     unsigned next_channel_ = 0;
+};
+
+
+// A pipeline node that merges 3 mono lines into a gray channel
+class ImagePipelineNodeMergeColorToGray : public ImagePipelineNode
+{
+public:
+    ImagePipelineNodeMergeColorToGray(ImagePipelineNode& source);
+
+    std::size_t get_width() const override { return source_.get_width(); }
+    std::size_t get_height() const override { return source_.get_height(); }
+    PixelFormat get_format() const override { return output_format_; }
+
+    bool eof() const override { return source_.eof(); }
+
+    bool get_next_row_data(std::uint8_t* out_data) override;
+
+private:
+    static PixelFormat get_output_format(PixelFormat input_format);
+
+    ImagePipelineNode& source_;
+    PixelFormat output_format_ = PixelFormat::UNKNOWN;
+    float ch0_mult_ = 0;
+    float ch1_mult_ = 0;
+    float ch2_mult_ = 0;
+
+    std::vector<std::uint8_t> temp_buffer_;
 };
 
 // A pipeline node that shifts colors across lines by the given offsets

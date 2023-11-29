@@ -581,13 +581,9 @@ hp_get_dev (const char *devname, HpDevice* devp)
   DBG(3, "hp_get_dev: New device %s, connect-%s, scsi-request=%lu\n",
       devname, connect, (unsigned long)info->config.use_scsi_request);
 
-  if (!ptr)
-  {
-     status =  sanei_hp_device_new (&new, devname);
-
-     if ( status != SANE_STATUS_GOOD )
-       return status;
-  }
+  status = sanei_hp_device_new (&new, devname);
+  if (status != SANE_STATUS_GOOD)
+      return status;
 
   if (devp)
       *devp = new;
@@ -816,7 +812,7 @@ sane_init (SANE_Int *version_code, SANE_Auth_Callback __sane_unused__ authorize)
   hp_destroy();
 
   if (version_code)
-    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, VERSIO);
+    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, VERSIO);
 
   status = hp_init();
   DBG(3, "sane_init will finish with %s\n", sane_strstatus (status));

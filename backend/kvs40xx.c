@@ -118,11 +118,6 @@ static inline void buf_set_st(struct buf *b, SANE_Status st)
 	pthread_mutex_unlock(&b->mu);
 }
 
-static inline void buf_cancel(struct buf *b)
-{
-	buf_set_st(b, SANE_STATUS_CANCELLED);
-}
-
 static inline void push_buf(struct buf *b, SANE_Int sz)
 {
 	pthread_mutex_lock(&b->mu);
@@ -165,7 +160,7 @@ sane_init (SANE_Int __sane_unused__ * version_code,
   DBG_INIT ();
   DBG (DBG_INFO, "This is panasonic kvs40xx driver\n");
 
-  *version_code = SANE_VERSION_CODE (V_MAJOR, V_MINOR, 1);
+  *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, 1);
 
   /* Initialize USB */
   sanei_usb_init ();
@@ -547,10 +542,10 @@ static void * read_data (void *arg)
 	sane_get_parameters(s, NULL);
 
 	s->page++;
-	return SANE_STATUS_GOOD;
+	return NULL;
       err:
 	s->scanning = 0;
-	return (void *) st;
+	return NULL;
 }
 
 /* Start scanning */

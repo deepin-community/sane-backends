@@ -2266,7 +2266,7 @@ sane_init(SANE_Int *version_code, SANE_Auth_Callback __sane_unused__ authorize)
 	    MAGICOLOR_VERSION, MAGICOLOR_REVISION, MAGICOLOR_BUILD);
 
 	if (version_code != NULL)
-		*version_code = SANE_VERSION_CODE(SANE_CURRENT_MAJOR, V_MINOR,
+		*version_code = SANE_VERSION_CODE(SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR,
 						  MAGICOLOR_BUILD);
 
 	sanei_usb_init();
@@ -3001,7 +3001,7 @@ sane_read(SANE_Handle handle, SANE_Byte *data, SANE_Int max_length,
 	}
 
 	DBG(18, "moving data %p %p, %d (%d lines)\n",
-		s->ptr, s->end,
+		(void *) s->ptr, (void *) s->end,
 		max_length, max_length / s->params.bytes_per_line);
 
 	mc_copy_image_data(s, data, max_length, length);

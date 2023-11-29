@@ -385,14 +385,14 @@ sane_init (SANE_Int *version_code, SANE_Auth_Callback authCB)
 
   DBG_INIT();
 
-  authCB=authCB; /* compiler */
+  (void) authCB; /* compiler */
 
   DBG(DEBUG_VERBOSE,"SM3600 init\n");
   if (version_code)
    {
-    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, BUILD);
+    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, BUILD);
     DBG(DEBUG_VERBOSE,"SM3600 version: %x\n",
-    	SANE_VERSION_CODE(SANE_CURRENT_MAJOR, V_MINOR, BUILD));
+    	SANE_VERSION_CODE(SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, BUILD));
    }
 
   pdevFirst=NULL;
@@ -783,7 +783,7 @@ sane_cancel (SANE_Handle handle)
 SANE_Status
 sane_set_io_mode(SANE_Handle h, SANE_Bool m)
 {
-  h=h;
+  (void) h;
   if (m==SANE_TRUE) /* no non-blocking-mode */
     return SANE_STATUS_UNSUPPORTED;
   return SANE_STATUS_GOOD;
@@ -792,6 +792,6 @@ sane_set_io_mode(SANE_Handle h, SANE_Bool m)
 SANE_Status
 sane_get_select_fd(SANE_Handle handle, SANE_Int *fd)
 {
-  handle=handle; fd=fd;
+  (void) handle; (void) fd;
   return SANE_STATUS_UNSUPPORTED; /* we have no file IO */
 }

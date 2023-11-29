@@ -40,6 +40,25 @@ struct cap
     size_t size;
 };
 
+static size_t
+header_callback(void *str, size_t size, size_t nmemb, void *userp)
+{
+    struct cap *header = (struct cap *)userp;
+    size_t realsize = size * nmemb;
+    char *content = realloc(header->memory, header->size + realsize + 1);
+
+    if (content == NULL) {
+        DBG( 1, "Not enough memory (realloc returned NULL)\n");
+        return (0);
+    }
+    header->memory = content;
+    memcpy(&(header->memory[header->size]), str, realsize);
+    header->size = header->size + realsize;
+    header->memory[header->size] = 0;
+    return (realsize);
+}
+
+
 /**
  * \fn static SANE_String_Const convert_elements(SANE_String_Const str)
  * \brief Function that converts the 'color modes' of the scanner (color/gray) to be understood by SANE.
@@ -182,10 +201,10 @@ find_valor_of_array_variables(xmlNode *node, capabilities_t *scanner, int type)
 {
     const char *name = (const char *)node->name;
     if (strcmp(name, "ColorMode") == 0) {
-		const char *color = (SANE_String_Const)xmlNodeGetContent(node);
-		if (type == PLATEN || strcmp(color, "BlackAndWhite1"))
+	const char *color = (SANE_String_Const)xmlNodeGetContent(node);
+        if (type == PLATEN || strcmp(color, "BlackAndWhite1"))
           scanner->caps[type].ColorModes = char_to_array(scanner->caps[type].ColorModes, &scanner->caps[type].ColorModesSize, (SANE_String_Const)xmlNodeGetContent(node), 1);
-	}
+    }
     else if (strcmp(name, "ContentType") == 0)
         scanner->caps[type].ContentTypes = char_to_array(scanner->caps[type].ContentTypes, &scanner->caps[type].ContentTypesSize, (SANE_String_Const)xmlNodeGetContent(node), 0);
     else if (strcmp(name, "DocumentFormat") == 0)
@@ -306,7 +325,8 @@ print_support(xmlNode *node)
             cpt++;
 	}
 	else if (!strcmp((const char *)node->name, "Normal")) {
-            sup->normal = atoi((const char *)xmlNodeGetContent(node));
+            sup->value = atoi((const char *)xmlNodeGetContent(node));
+            sup->normal = sup->value;
             cpt++;
             have_norm = 1;
 	}
@@ -319,7 +339,8 @@ print_support(xmlNode *node)
     if (cpt == 4)
         return sup;
     if (cpt == 3 && have_norm == 0) {
-	sup->normal = (sup->max / 2 );
+	sup->value = (sup->max / 2 );
+	sup->normal = sup->value;
         return sup;
     }
     free(sup);
@@ -385,6 +406,16 @@ find_true_variables(xmlNode *node, capabilities_t *scanner, int type)
     return (0);
 }
 
+static char*
+replace_char(char* str, char find, char replace){
+    char *current_pos = strchr(str,find);
+    while (current_pos) {
+        *current_pos = replace;
+        current_pos = strchr(current_pos,find);
+    }
+    return str;
+}
+
 /**
  * \fn static int print_xml_c(xmlNode *node, capabilities_t *scanner)
  * \brief Function that browses the xml file, node by node.
@@ -399,6 +430,10 @@ print_xml_c(xmlNode *node, ESCL_Device *device, capabilities_t *scanner, int typ
             if (find_nodes_c(node) && type != -1)
                 find_true_variables(node, scanner, type);
         }
+        if (!strcmp((const char *)node->name, "Version")&& node->ns && node->ns->prefix){
+            if (!strcmp((const char*)node->ns->prefix, "pwg"))
+                device->version = atof ((const char *)xmlNodeGetContent(node));
+	}
         if (!strcmp((const char *)node->name, "MakeAndModel")){
             device->model_name = strdup((const char *)xmlNodeGetContent(node));
 	}
@@ -454,6 +489,37 @@ _reduce_color_modes(capabilities_t *scanner)
     }
 }
 
+static void
+_delete_pdf(capabilities_t *scanner)
+{
+    int type = 0;
+    for (type = 0; type < 3; type++) {
+         if (scanner->caps[type].ColorModesSize) {
+	     if (scanner->caps[type].default_format) {
+		 scanner->caps[type].have_pdf = -1;
+		 if (!strcmp(scanner->caps[type].default_format, "application/pdf")) {
+	             free(scanner->caps[type].default_format);
+		     if (scanner->caps[type].have_tiff > -1)
+	                scanner->caps[type].default_format = strdup("image/tiff");
+		     else if (scanner->caps[type].have_png > -1)
+	                scanner->caps[type].default_format = strdup("image/png");
+		     else if (scanner->caps[type].have_jpeg > -1)
+	                scanner->caps[type].default_format = strdup("image/jpeg");
+		 }
+	         free(scanner->caps[type].ColorModes);
+		 scanner->caps[type].ColorModes = NULL;
+	         scanner->caps[type].ColorModesSize = 0;
+                 scanner->caps[type].ColorModes = char_to_array(scanner->caps[type].ColorModes,
+		             &scanner->caps[type].ColorModesSize,
+		    	     (SANE_String_Const)SANE_VALUE_SCAN_MODE_GRAY, 0);
+                 scanner->caps[type].ColorModes = char_to_array(scanner->caps[type].ColorModes,
+		             &scanner->caps[type].ColorModesSize,
+			     (SANE_String_Const)SANE_VALUE_SCAN_MODE_COLOR, 0);
+	     }
+         }
+    }
+}
+
 /**
  * \fn capabilities_t *escl_capabilities(const ESCL_Device *device, SANE_Status *status)
  * \brief Function that finally recovers all the capabilities of the scanner, using curl.
@@ -463,15 +529,17 @@ _reduce_color_modes(capabilities_t *scanner)
  * \return scanner (the structure that stocks all the capabilities elements)
  */
 capabilities_t *
-escl_capabilities(ESCL_Device *device, SANE_Status *status)
+escl_capabilities(ESCL_Device *device, char *blacklist, SANE_Status *status)
 {
     capabilities_t *scanner = (capabilities_t*)calloc(1, sizeof(capabilities_t));
     CURL *curl_handle = NULL;
     struct cap *var = NULL;
+    struct cap *header = NULL;
     xmlDoc *data = NULL;
     xmlNode *node = NULL;
     int i = 0;
     const char *scanner_capabilities = "/eSCL/ScannerCapabilities";
+    SANE_Bool use_pdf = SANE_TRUE;
 
     *status = SANE_STATUS_GOOD;
     if (device == NULL)
@@ -481,11 +549,22 @@ escl_capabilities(ESCL_Device *device, SANE_Status *status)
         *status = SANE_STATUS_NO_MEM;
     var->memory = malloc(1);
     var->size = 0;
+    header = (struct cap *)calloc(1, sizeof(struct cap));
+    if (header == NULL)
+        *status = SANE_STATUS_NO_MEM;
+    header->memory = malloc(1);
+    header->size = 0;
     curl_handle = curl_easy_init();
     escl_curl_url(curl_handle, device, scanner_capabilities);
     curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, memory_callback_c);
     curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)var);
+    curl_easy_setopt(curl_handle, CURLOPT_HEADERFUNCTION, header_callback);
+    curl_easy_setopt(curl_handle, CURLOPT_HEADERDATA, (void *)header);
+    curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl_handle, CURLOPT_MAXREDIRS, 3L);
     CURLcode res = curl_easy_perform(curl_handle);
+    if (res == CURLE_OK)
+        DBG( 1, "Create NewJob : the scanner header responded : [%s]\n", header->memory);
     if (res != CURLE_OK) {
         DBG( 1, "The scanner didn't respond: %s\n", curl_easy_strerror(res));
         *status = SANE_STATUS_INVAL;
@@ -503,18 +582,47 @@ escl_capabilities(ESCL_Device *device, SANE_Status *status)
         goto clean;
     }
 
+    if (device->hack &&
+        header &&
+        header->memory &&
+        strstr(header->memory, "Server: HP_Compact_Server"))
+        device->hack = curl_slist_append(NULL, "Host: localhost");
+
+    device->version = 0.0;
     scanner->source = 0;
     scanner->Sources = (SANE_String_Const *)malloc(sizeof(SANE_String_Const) * 4);
     for (i = 0; i < 4; i++)
        scanner->Sources[i] = NULL;
     print_xml_c(node, device, scanner, -1);
-    _reduce_color_modes(scanner);
+    DBG (3, "1-blacklist_pdf: %s\n", (use_pdf ? "TRUE" : "FALSE") );
+    if (device->model_name != NULL) {
+        if (strcasestr(device->model_name, "MFC-J985DW")) {
+           DBG (3, "blacklist_pdf: device not support PDF\n");
+           use_pdf = SANE_FALSE;
+        }
+	else if (blacklist) {
+           char *model = strdup(device->model_name);
+           replace_char(model, ' ', '_');
+	   if (strcasestr(blacklist, model)) {
+               use_pdf = SANE_FALSE;
+	   }
+	   free(model);
+	}
+    }
+    DBG (3, "1-blacklist_pdf: %s\n", (use_pdf ? "TRUE" : "FALSE") );
+    if (use_pdf)
+       _reduce_color_modes(scanner);
+    else
+       _delete_pdf(scanner);
 clean:
     xmlFreeDoc(data);
 clean_data:
     xmlCleanupParser();
     xmlMemoryDump();
     curl_easy_cleanup(curl_handle);
+    if (header)
+      free(header->memory);
+    free(header);
     if (var)
       free(var->memory);
     free(var);

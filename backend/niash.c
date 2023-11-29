@@ -195,7 +195,7 @@ _UnityGammaTable (unsigned char *hwGamma)
 }
 
 static const SANE_Range rangeXmm = { 0, 220, 1 };
-static const SANE_Range rangeYmm = { 0, 296, 1 };
+static const SANE_Range rangeYmm = { 0, 297, 1 };
 static const SANE_Int startUpGamma = SANE_FIX (1.6);
 
 static const char colorStr[] = { SANE_VALUE_SCAN_MODE_COLOR };
@@ -827,7 +827,7 @@ sane_init (SANE_Int * piVersion, SANE_Auth_Callback __sane_unused__ pfnAuth)
 
   if (piVersion != NULL)
     {
-      *piVersion = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, BUILD);
+      *piVersion = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, BUILD);
     }
 
   /* initialise transfer methods */
@@ -1368,7 +1368,7 @@ sane_read (SANE_Handle h, SANE_Byte * buf, SANE_Int maxlen, SANE_Int * len)
   TDataPipe *p;
   TModeParam const *pMode;
 
-  DBG (DBG_MSG, "sane_read: buf=%p, maxlen=%d, ", buf, maxlen);
+  DBG (DBG_MSG, "sane_read: buf=%p, maxlen=%d, ", (void *) buf, maxlen);
 
   s = (TScanner *) h;
 

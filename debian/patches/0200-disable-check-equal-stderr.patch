@@ -1,0 +1,23 @@
+Description: Build fails on GCC12:
+.
+minigtest.h:43:29: error: no match for ‘operator<<’ (operand types are ‘std::basic_ostream<char>’ and ‘const std::vector<long unsigned int>’)
+minigtest.h:43:29: error: no match for ‘operator<<’ (operand types are ‘std::basic_ostream<char>’ and ‘const std::vector<unsigned char>’)
+minigtest.h:43:29: error: no match for ‘operator<<’ (operand types are ‘std::basic_ostream<char>’ and ‘const genesys::Pixel’)
+minigtest.h:43:29: error: no match for ‘operator<<’ (operand types are ‘std::basic_ostream<char>’ and ‘const genesys::RawPixel’)
+minigtest.h:43:29: error: no match for ‘operator<<’ (operand types are ‘std::basic_ostream<char>’ and ‘const genesys::PixelFormat’)
+.
+Simply suppressing the print of the mismatch is the lowest effort workaround.
+Author: Nathan Pratta Teodosio <nathan.teodosio@canonical.com>
+Bug: 1013034
+Forwarded: No
+
+--- a/testsuite/backend/genesys/minigtest.h
++++ b/testsuite/backend/genesys/minigtest.h
+@@ -40,7 +40,6 @@
+         s_num_failures++;
+         std::cerr << "FAILURE at ";
+         print_location(std::cerr, function, path, line);
+-        std::cerr << " :\n" << t << " != " << u << "\n\n";
+     } else {
+         s_num_successes++;
+         std::cerr << "SUCCESS at ";

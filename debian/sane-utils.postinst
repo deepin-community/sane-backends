@@ -31,11 +31,12 @@ if [ "$1" = "configure" ] || [ "$1" = "reconfigure" ]; then
     db_get sane-utils/saned_scanner_group
     SANED_IN_SCANNER="$RET"
 
-    # Add saned service, disabled by default
-    pathfind update-inetd
-    if [ $? = 0 ]; then
-	update-inetd --add "#<off># sane-port\tstream\ttcp\tnowait\tsaned:saned\t/usr/sbin/saned saned"
-    fi
+    if [ -f /etc/inetd.conf ]; then
+	# Add saned service, disabled by default
+	if pathfind update-inetd ; then
+	    update-inetd --add "#<off># sane-port\tstream\ttcp\tnowait\tsaned:saned\t/usr/sbin/saned saned"
+	fi
+     fi
 
     # Stop debconf; output to stdout after this point. update-inetd needs debconf.
     db_stop
@@ -43,24 +44,13 @@ if [ "$1" = "configure" ] || [ "$1" = "reconfigure" ]; then
     # Create saned user/group if they do not exist
     if ! getent passwd | grep -q "^saned:"; then
 	echo "Adding saned group and user..."
-	adduser --home /var/lib/saned  --quiet --system --no-create-home --group saned || true
+	adduser --home /var/lib/saned  --quiet --system --group saned || true
     fi
 
-    # Move home from /home/saned to /var/lib/saned (since 1.0.24-6)
-    if getent passwd | grep "^saned:" | grep -q "/home/saned"; then
-	echo "Test for running scanbd"
-	if ps -Af | grep "saned" | grep -q "scanbd"; then
-	    echo "Stop scanbd"
-	    invoke-rc.d --quiet scanbd stop
-	    echo "Move homedir from /home/saned to /var/lib/saned"
-	    usermod -d /var/lib/saned saned
-	    echo "Start scanbd"
-	    invoke-rc.d --quiet scanbd start
-	else
-	    echo "Move homedir from /home/saned to /var/lib/saned"
-	    usermod -d /var/lib/saned saned
-	fi
+    if [ ! -d /var/lib/saned ] ; then
+	usermod -d /var/lib/saned saned
     fi
+
     if [ "$SANED_IN_SCANNER" = "true" ]; then
 	adduser --quiet saned scanner
     else

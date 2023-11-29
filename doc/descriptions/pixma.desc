@@ -106,6 +106,18 @@
 :status :untested
 :comment "Testers needed!"
 
+:model "PIXMA E4500 Series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18db"
+:status :untested
+:comment "Testers needed!"
+
+:model "PIXMA G600"
+:interface "USB"
+:usbid "0x04a9" "0x18d5"
+:status :complete
+:comment "All resolutions supported (up to 600DPI)."
+
 :model "PIXMA G2000"
 :interface "USB"
 :usbid "0x04a9" "0x1795"
@@ -172,6 +184,12 @@
 :status :untested
 :comment "Testers needed!"
 
+:model "PIXMA G4511"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x183d"
+:status :complete
+:comment "Flatbed and ADF scan.  All resolutions supported (up to 600DPI). WIFI not supported"
+
 :model "PIXMA G6000"
 :interface "USB WiFi"
 :usbid "0x04a9" "0x1865"
@@ -205,6 +223,18 @@
 :model "PIXMA GM4080"
 :interface "USB"
 :usbid "0x04a9" "0x186a"
+:status :untested
+:comment "Testers needed!"
+
+:model "PIXMA GX6000 Series"
+:interface "USB Ethernet WiFi"
+:usbid "0x04a9" "0x18a6"
+:status :untested
+:comment "Testers needed!"
+
+:model "PIXMA GX7000"
+:interface "USB"
+:usbid "0x04a9" "0x18a8"
 :status :untested
 :comment "Testers needed!"
 
@@ -911,6 +941,17 @@
 :status :complete
 :comment "Flatbed and ADF scan. All resolutions supported (up to 600DPI)"
 
+:model "PIXMA TR4600 Series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18da"
+:status :complete
+:comment "Flatbed and ADF scan. All resolutions supported (up to 600DPI)"
+
+:model "PIXMA TR4700 Series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18dc"
+:status :complete
+:comment "Flatbed and ADF scan. All resolutions supported (up to 600DPI)"
 
 :model "PIXMA TR7000 Series"
 :interface "USB"
@@ -972,6 +1013,18 @@
 :status :untested
 :comment "Testers needed!"
 
+:model "PIXMA TS2400 Series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x1108"
+:status :good
+:comment "All resolutions supported (up to 600DPI). WiFi not working."
+
+:model "PIXMA TS2600 Series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x1107"
+:status :good
+:comment "All resolutions supported (up to 600DPI). WiFi not working."
+
 :model "PIXMA TS3100 Series"
 :interface "USB WiFi"
 :usbid "0x04a9" "0x1827"
@@ -984,9 +1037,27 @@
 :status :good
 :comment "All resolutions supported (up to 1200DPI). WiFi not working."
 
-:model "PIXMA TS3400 Series"
+:model "PIXMA TS3450"
 :interface "USB"
 :usbid "0x04a9" "0x18b7"
+:status :good
+:comment ""All resolutions supported (up to 600DPI). WiFi not working.
+
+:model "PIXMA TS3451"
+:interface "USB"
+:usbid "0x04a9" "0x18b7"
+:status :good
+:comment ""All resolutions supported (up to 600DPI). WiFi not working.
+
+:model "PIXMA TS3452"
+:interface "USB"
+:usbid "0x04a9" "0x18b7"
+:status :good
+:comment ""All resolutions supported (up to 600DPI). WiFi not working.
+
+:model "PIXMA TS3500 Series"
+:interface "USB"
+:usbid "0x04a9" "0x18d4"
 :status :untested
 :comment "Testers needed!"
 
@@ -1008,9 +1079,21 @@
 :status :untested
 :comment "Testers needed!"
 
+:model "PIXMA TS5350i Series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18d9"
+:status :untested
+:comment "Testers needed!"
+
 :model "PIXMA TS5380 Series"
 :interface "USB WiFi"
 :usbid "0x04a9" "0x188c"
+:status :untested
+:comment "Testers needed!"
+
+:model "PIXMA TS5400 Series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18d8"
 :status :untested
 :comment "Testers needed!"
 
@@ -1077,8 +1160,8 @@
 :model "PIXMA TS6400 Series"
 :interface "USB"
 :usbid "0x04a9" "0x18d3"
-:status :untested
-:comment "Testers needed!"
+:status :good
+:comment "All resolutions supported (up to 1200DPI). WiFi not tested by Pixma as yet."
 
 :model "PIXMA TS7330 Series"
 :interface "USB WiFi"
@@ -1098,17 +1181,23 @@
 :status :untested
 :comment "Testers needed!"
 
+:model "PIXMA TS7450i Series"
+:interface "USB"
+:usbid "0x04a9" "0x18f7"
+:status :untested
+:comment "Testers needed!"
+
+:model "PIXMA TS7530 Series"
+:interface "USB"
+:usbid "0x04a9" "0x18e1"
+:status :untested
+:comment "Testers needed!"
+
 :model "PIXMA TS8000 Series"
 :interface "USB WiFi"
 :usbid "0x04a9" "0x1800"
 :status :good
-:comment "All resolutions supported (up to 2400DPI). WiFi not working."
-
-:model "PIXMA TS8430 Series"
-:interface "USB"
-:usbid "0x04a9" "0x18b5"
-:status :untested
-:comment "Testers needed!"
+:comment "All resolutions supported (up to 2400DPI). WiFi not supported by Pixma."
 
 :model "PIXMA TS8100 Series"
 :interface "USB WiFi"
@@ -1161,6 +1250,18 @@
 :model "PIXMA TS8380 Series"
 :interface "USB WiFi"
 :usbid "0x04a9" "0x1891"
+:status :untested
+:comment "Testers needed!"
+
+:model "PIXMA TS8430 Series"
+:interface "USB"
+:usbid "0x04a9" "0x18b5"
+:status :untested
+:comment "Testers needed!"
+
+:model "PIXMA TS8530 Series"
+:interface "USB"
+:usbid "0x04a9" "0x18e0"
 :status :untested
 :comment "Testers needed!"
 
@@ -1227,6 +1328,18 @@
 :model "PIXUS XK80 Series"
 :interface "USB WiFi"
 :usbid "0x04a9" "0x1873"
+:status :untested
+:comment "Testers needed!"
+
+:model "PIXUS XK100 Series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18e2"
+:status :untested
+:comment "Testers needed!"
+
+:model "PIXUS XK500 Series"
+:interface "USB WiFi"
+:usbid "0x04a9" "0x18df"
 :status :untested
 :comment "Testers needed!"
 
@@ -1643,6 +1756,12 @@
 :usbid "0x04a9" "0x261f"
 :status :complete
 :comment "All resolutions supported (up to 600DPI). Identical with SmartBase MPC200 and PIXUS MP10."
+
+:model "imageRUNNER 1018/1022/1023"
+:interface "USB"
+:usbid "0x04a9" "0x269d"
+:status :complete
+:comment "Flatbed and ADF scan.  All resolutions supported (up to 600DPI)"
 
 :model "imageRUNNER 1020/1024/1025"
 :interface "USB"

@@ -9,7 +9,7 @@ Index: trunk/acinclude.m4
 ===================================================================
 --- trunk.orig/acinclude.m4
 +++ trunk/acinclude.m4
-@@ -436,15 +436,19 @@ AC_DEFUN([SANE_CHECK_GPHOTO2],
+@@ -414,15 +414,19 @@ AC_DEFUN([SANE_CHECK_GPHOTO2],
    # a program.   And, if that works, then add the -l flags to
    # GPHOTO2_LIBS and any other flags to GPHOTO2_LDFLAGS to pass to
    # sane-config.
@@ -36,7 +36,7 @@ Index: trunk/acinclude.m4
          saved_CPPFLAGS="${CPPFLAGS}"
          CPPFLAGS="${GPHOTO2_CPPFLAGS}"
  	saved_LIBS="${LIBS}"
-@@ -464,13 +468,13 @@ AC_DEFUN([SANE_CHECK_GPHOTO2],
+@@ -442,13 +446,13 @@ AC_DEFUN([SANE_CHECK_GPHOTO2],
          GPHOTO2_LIBS=""
        else
          SANE_EXTRACT_LDFLAGS(GPHOTO2_LIBS, GPHOTO2_LDFLAGS)

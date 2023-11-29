@@ -225,10 +225,10 @@ sane_init (SANE_Int * version_code, SANE_Auth_Callback authorize)
   DBG (2, "sane_init: version_code %s 0, authorize %s 0\n",
        version_code == 0 ? "=" : "!=", authorize == 0 ? "=" : "!=");
   DBG (1, "sane_init: SANE Canon LiDE70 backend version %d.%d.%d from %s\n",
-       V_MAJOR, V_MINOR, BUILD, PACKAGE_STRING);
+       SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, BUILD, PACKAGE_STRING);
 
   if (version_code)
-    *version_code = SANE_VERSION_CODE (V_MAJOR, V_MINOR, BUILD);
+    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, BUILD);
 
   sanei_usb_init ();
 
@@ -819,8 +819,8 @@ sane_control_option (SANE_Handle handle, SANE_Int option, SANE_Action action,
 		 "sane_control_option: get option %d (%s), value=%.1f %s\n",
 		 option, chndl->opt[option].name,
 		 SANE_UNFIX (*(SANE_Fixed *) value),
-		 chndl->opt[option].unit ==
-		 SANE_UNIT_MM ? "mm" : SANE_UNIT_DPI ? "dpi" : "");
+		 chndl->opt[option].unit == SANE_UNIT_MM ? "mm" :
+                 (chndl->opt[option].unit == SANE_UNIT_DPI ? "dpi" : ""));
 	    break;
 	  }
 	case opt_non_blocking:
@@ -863,7 +863,7 @@ sane_get_parameters (SANE_Handle handle, SANE_Parameters * params)
   Canon_Scanner *hndl = handle;	/* Eliminate compiler warning */
   CANON_Handle *chndl = &hndl->scan;
 
-  int rc = SANE_STATUS_GOOD;
+  SANE_Status rc = SANE_STATUS_GOOD;
   int w = SANE_UNFIX (chndl->val[opt_br_x].w -
 		      chndl->val[opt_tl_x].w) / MM_IN_INCH *
     chndl->val[opt_resolution].w;
@@ -956,7 +956,7 @@ sane_set_io_mode (SANE_Handle handle, SANE_Bool non_blocking)
 SANE_Status
 sane_get_select_fd (SANE_Handle handle, SANE_Int * fd)
 {
-  handle = handle;		/* silence gcc */
-  fd = fd;			/* silence gcc */
+  (void) handle;		/* silence gcc */
+  (void) fd;			/* silence gcc */
   return SANE_STATUS_UNSUPPORTED;
 }

@@ -14,12 +14,6 @@ ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
 	STRIP = ""
 endif
 
-ifeq (,$(filter hurd-i386,$(DEB_HOST_ARCH)))
-	INS_CONF = --enable-parport-directio
-else
-	INS_CONF = ""
-endif
-
 %:
 	dh $@
 
@@ -55,8 +49,7 @@ endif
 		--enable-pnm-backend \
 		--with-usb \
 		--without-v4l \
-		--disable-locking \
-		$(INS_CONF)
+		--disable-locking
 
 override_dh_autoreconf:
 	dh_autoreconf -Xlibtool.m4
@@ -74,6 +67,8 @@ override_dh_auto_clean:
 	$(RM) debian/libsane1.udev
 	dh_auto_clean
 	$(RM) $(SANE_DESC)
+	$(RM) $(CURDIR)/backend/genesys-s.cpp
+	$(RM) $(CURDIR)/po/*.gmo
 
 override_dh_auto_install-arch:
 	$(MAKE) install DESTDIR=$(CURDIR)/debian/tmp
@@ -106,7 +101,6 @@ override_dh_installman-indep:
 	$(RM) $(CURDIR)/debian/libsane-common/usr/share/man/man1/sane-find-scanner.1
 	$(RM) $(CURDIR)/debian/libsane-common/usr/share/man/man1/scanimage.1
 	$(RM) $(CURDIR)/debian/libsane-common/usr/share/man/man1/sane-config.1
-	$(RM) $(CURDIR)/debian/libsane-common/usr/share/man/man5/sane-umax_pp.5
 	$(RM) -r $(CURDIR)/debian/libsane-common/usr/share/man/man8/
 	$(RM) -r $(CURDIR)/debian/libsane-common/usr/share/man/man1/
         # remove manpages for not build libs

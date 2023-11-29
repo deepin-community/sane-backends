@@ -157,19 +157,19 @@ sane_init (SANE_Int * version_code, SANE_Auth_Callback authorize)
 {
   SANE_Status status;
 
-  authorize = authorize;	/* get rid of compiler warning */
+  (void) authorize;		/* get rid of compiler warning */
 
   init_count++;
 
   /* init backend debug */
   DBG_INIT ();
   DBG (DBG_info, "SANE P5 backend version %d.%d-%d\n",
-       SANE_CURRENT_MAJOR, V_MINOR, BUILD);
+       SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, BUILD);
   DBG (DBG_proc, "sane_init: start\n");
   DBG (DBG_trace, "sane_init: init_count=%d\n", init_count);
 
   if (version_code)
-    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, BUILD);
+    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, BUILD);
 
   /* cold-plugging case : probe for already plugged devices */
   status = probe_p5_devices ();
@@ -459,8 +459,8 @@ SANE_Status
 sane_get_select_fd (SANE_Handle handle, SANE_Int * fdp)
 {
   /* make compiler happy ... */
-  handle = handle;
-  fdp = fdp;
+  (void) handle;
+  (void) fdp;
 
   DBG (DBG_proc, "sane_get_select_fd: start\n");
   DBG (DBG_warn, "sane_get_select_fd: unsupported ...\n");
@@ -1595,7 +1595,7 @@ config_attach (SANEI_Config __sane_unused__ * config, const char *devname,
   /* currently, the config is a global variable so config is useless here */
   /* the correct thing would be to have a generic sanei_attach_matching_devices
    * using an attach function with a config parameter */
-  config = config;
+  (void) config;
 
   /* the devname has been processed and is ready to be used
    * directly. The config struct contains all the configuration data for

@@ -2591,7 +2591,7 @@ sane_init (SANE_Int * version_code, SANE_Auth_Callback authorize)
   strcpy (artec_model, "");
 
   if (version_code)
-    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, V_MINOR, 0);
+    *version_code = SANE_VERSION_CODE (SANE_CURRENT_MAJOR, SANE_CURRENT_MINOR, 0);
 
   if (authorize)
     DBG (7, "sane_init(), authorize %s null\n", (authorize) ? "!=" : "==");
@@ -3474,7 +3474,7 @@ artec_sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int
   SANE_Byte line_buf[ARTEC_MAX_READ_SIZE];
 
 
-  DBG (7, "artec_sane_read( %p, %p, %d, %d )\n", handle, buf, max_len, *len);
+  DBG (7, "artec_sane_read( %p, %p, %d, %d )\n", handle, (void *) buf, max_len, *len);
 
   *len = 0;
 
@@ -3674,7 +3674,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
   static SANE_Byte temp_buf[ARTEC_MAX_READ_SIZE];
   static int bytes_in_buf = 0;
 
-  DBG (7, "sane_read( %p, %p, %d, %d )\n", handle, buf, max_len, *len);
+  DBG (7, "sane_read( %p, %p, %d, %d )\n", handle, (void *) buf, max_len, *len);
   DBG (9, "sane_read: bib = %d, ml = %d\n", bytes_in_buf, max_len);
 
   if (bytes_in_buf != 0)
