@@ -1,3 +1,9 @@
+sane-backends (1.2.1-5deepin1) unstable; urgency=medium
+
+  * Provides: libsane.
+
+ -- LiChengGang <lichenggang@uniontech.com>  Wed, 24 Jul 2024 14:28:38 +0800
+
 sane-backends (1.2.1-5) unstable; urgency=medium
 
   * debian/rules:

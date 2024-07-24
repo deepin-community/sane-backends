@@ -97,6 +97,7 @@ Recommends:
  sane-airscan,
  sane-utils (>= ${binary:Version}),
  ipp-usb
+Provides: libsane (= ${source:Version})
 Suggests: avahi-daemon, hplip
 Description: API library for scanners
  SANE stands for "Scanner Access Now Easy" and is an application
