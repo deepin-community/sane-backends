@@ -26,7 +26,7 @@ endif
 override_dh_auto_configure:
 	autoconf
 ifneq ($(DEB_BUILD_ARCH),$(DEB_HOST_ARCH))
-	dpkg-architecture -f "-a$(DEB_BUILD_ARCH)" -c dh_auto_configure
+	dpkg-architecture -f "-a$(DEB_BUILD_ARCH)" -c dh_auto_configure --reload-all-buildenv-variables
 	$(MAKE) -C $(CURDIR)/lib liblib.la
 	$(MAKE) -C $(CURDIR)/sanei libsanei.la
 	$(MAKE) -C $(CURDIR)/tools sane-desc
@@ -48,7 +48,6 @@ endif
 		--with-avahi \
 		--enable-pnm-backend \
 		--with-usb \
-		--without-v4l \
 		--disable-locking
 
 override_dh_autoreconf:
@@ -85,11 +84,27 @@ override_dh_auto_install-indep:
 	$(RM) debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/sane/libsane-dll.*
 
 override_dh_install-arch:
+ifeq (linux,$(DEB_HOST_ARCH_OS))
+	# udev support
+	# Generate the udev rules file
+	$(SANE_DESC) -s $(CURDIR)/doc/descriptions -m udev+hwdb > $(CURDIR)/debian/60-libsane1.rules
+	$(SANE_DESC) -s $(CURDIR)/doc/descriptions -m hwdb > $(CURDIR)/debian/20-sane.hwdb
+
+	cp $(CURDIR)/debian/20-sane.hwdb $(CURDIR)/debian/libsane1/usr/lib/udev/hwdb.d/
+	cp $(CURDIR)/debian/60-libsane1.rules $(CURDIR)/debian/libsane1/usr/lib/udev/rules.d/
+	cp $(CURDIR)/debian/99-libsane1.rules $(CURDIR)/debian/libsane1/usr/lib/udev/rules.d/
+endif
+
 	dh_install
 	# Install the pkg-config file
 	mkdir -p debian/libsane-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/
 	cp tools/sane-backends.pc debian/libsane-dev/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/
 	cp debian/sane-utils.logrotate debian/sane-utils/etc/logrotate.d/sane-utils
+
+	# remove rpath from the binaries (wonderful tool !)
+	chrpath -d debian/sane-utils/usr/sbin/saned
+	chrpath -d debian/sane-utils/usr/bin/scanimage
+	chrpath -d debian/sane-utils/usr/bin/sane-find-scanner
 
 override_dh_install-indep:
 	dh_install
@@ -125,22 +140,6 @@ endif
 ifeq (linux,$(DEB_HOST_ARCH_OS))
 	cp README.linux debian/libsane-common/usr/share/doc/libsane-common/
 endif
-
-override_dh_installudev-arch:
-ifeq (linux,$(DEB_HOST_ARCH_OS))
-	# udev support
-	# Generate the udev rules file
-	$(SANE_DESC) -s $(CURDIR)/doc/descriptions -m udev+hwdb > $(CURDIR)/debian/libsane1.udev
-	$(SANE_DESC) -s $(CURDIR)/doc/descriptions -m hwdb > $(CURDIR)/debian/20-sane.hwdb
-
-	cp $(CURDIR)/debian/20-sane.hwdb $(CURDIR)/debian/libsane1/lib/udev/hwdb.d/
-	dh_installudev
-endif
-
-	# remove rpath from the binaries (wonderful tool !)
-	chrpath -d debian/sane-utils/usr/sbin/saned
-	chrpath -d debian/sane-utils/usr/bin/scanimage
-	chrpath -d debian/sane-utils/usr/bin/sane-find-scanner
 
 override_dh_installinit-arch:
 	dh_installinit -psane-utils --name=saned
