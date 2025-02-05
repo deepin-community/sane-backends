@@ -5,10 +5,12 @@
 0140-avahi.patch
 0145-avahi.patch
 0705-kfreebsd.patch
-0725-fix_link_60-libsane_rule.patch
 0150-i386-test.patch
 0155-hurd_PATH_MAX.patch
 0050-Use-python3-shebang.patch
 0060-cross.patch
 0605-fix_groff-warnings.patch
 0200-disable-check-equal-stderr.patch
+0610-fix_groff_font_warnings.patch
+0180-Escl_force_idle_status.patch
+0185-fix_memory.patch
