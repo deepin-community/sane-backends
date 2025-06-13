@@ -1,3 +1,9 @@
+sane-backends (1.2.1-5deepin2) unstable; urgency=medium
+
+  * update verison for rebuild.
+
+ -- liujianqiang <liujianqiang@uniontech.com>  Fri, 13 Jun 2025 11:25:07 +0800
+
 sane-backends (1.2.1-5deepin1) unstable; urgency=medium
 
   * Provides: libsane.
