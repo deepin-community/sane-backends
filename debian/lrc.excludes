@@ -1,0 +1,8 @@
+debian/control
+LICENSE
+backend/v4l.h
+backend/xerox_mfp.c
+backend/xerox_mfp.h
+backend/xerox_mfp-tcp.c
+backend/xerox_mfp-usb.c
+patches/ax_create_stdint_h.19-20.m4.patch

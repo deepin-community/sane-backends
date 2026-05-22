@@ -1,0 +1,62 @@
+Description: Fix memory handling at backend/hp5590_low.c
+Author: 
+Origin: upstream, https://gitlab.com/sane-project/backends/-/merge_requests/857
+Bug: https://gitlab.com/sane-project/backends/-/issues/782
+     https://gitlab.com/sane-project/backends/-/issues/781
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1071658
+            https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1071660
+Forwarded: not-needed
+Applied-Upstream: https://gitlab.com/sane-project/backends/-/merge_requests/857
+Last-Update: 2024-12-08
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+diff --git a/backend/hp5590.c b/backend/hp5590.c
+index 78c93132558365c8005c45fb756da57d1dfe9005..56acfb13c308f889daba472e05f1a03bb5967d18 100644
+--- a/backend/hp5590.c
++++ b/backend/hp5590.c
+@@ -2154,6 +2154,24 @@ sane_read_internal (struct hp5590_scanner * scanner, SANE_Byte * data,
+        max_length,
+        scanner->transferred_image_size);
+ 
++  /*
++   * We will truncate down the buffer size to *under* what the
++   * internal USB reading buffer can supply. This will avoid page read issues
++   * at the end of the buffer.
++   *
++   * See: https://gitlab.com/sane-project/backends/-/issues/781
++   *
++   */
++  if (max_length > BULK_READ_PAGE_SIZE * MAX_READ_PAGES)
++    {
++      DBG (DBG_proc, "%s, truncating sane_read buffer from %u to %u\n",
++           __func__,
++           max_length,
++	   BULK_READ_PAGE_SIZE * MAX_READ_PAGES);
++
++      max_length = BULK_READ_PAGE_SIZE * MAX_READ_PAGES;
++    }
++
+   SANE_Int length_limited = 0;
+   *length = max_length;
+   if ((unsigned long long) *length > scanner->transferred_image_size)
+diff --git a/backend/hp5590_low.c b/backend/hp5590_low.c
+index 2d19dcf951717919099995a402002e1d18822849..7038f438640c72ede3b9d01d09d14b750f2c0041 100644
+--- a/backend/hp5590_low.c
++++ b/backend/hp5590_low.c
+@@ -99,9 +99,15 @@ struct usb_in_usb_ctrl_setup {
+ #define CORE_FLAG_NOT_READY             1 << 1
+ 
+ /* Bulk transfers are done in pages, below their respective sizes */
++/*
++ * Note that we limit the amount we can supply to sane_read() to avoid
++ * clashes with the size of the internal read buffer.
++ *
++ */
+ #define BULK_WRITE_PAGE_SIZE            0x0f000
+ #define BULK_READ_PAGE_SIZE             0x10000
+-#define ALLOCATE_BULK_READ_PAGES        16      /* 16 * 65536 = 1Mb */
++#define ALLOCATE_BULK_READ_PAGES        17      /* 16 * 65536 = 1Mb */
++#define MAX_READ_PAGES			16	/* maximum that we will return to sane_read() */
+ 
+ /* Structure describing bulk read state, because bulk reads will be done in
+  * pages, but function caller uses its own buffer, whose size is certainly

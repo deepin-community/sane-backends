@@ -38,7 +38,7 @@ Index: trunk/backend/Makefile.am
  ##  included LICENSE file for license information.
  
 -AM_CPPFLAGS += -I. -I$(srcdir) -I$(top_builddir)/include -I$(top_srcdir)/include $(USB_CFLAGS) -DLIBDIR="\"$(libdir)/sane\""
-+AM_CPPFLAGS += -I. -I$(srcdir) -I$(top_builddir)/include -I$(top_srcdir)/include $(USB_CFLAGS) -DLIBDIR="\"$(libdir)/sane\"" -DDEB_DLL_LIBDIR="\"$(libdir)/sane:$(prefix)/lib/sane\:$(prefix)/lib64/sane\""
++AM_CPPFLAGS += -I. -I$(srcdir) -I$(top_builddir)/include -I$(top_srcdir)/include $(USB_CFLAGS) -DLIBDIR="\"$(libdir)/sane\"" -DDEB_DLL_LIBDIR="\"$(libdir)/sane:$(prefix)/lib/sane:$(prefix)/lib64/sane\""
  
  AM_LDFLAGS += $(STRICT_LDFLAGS)
  # The -rpath option is added because we are creating _LTLIBRARIES based

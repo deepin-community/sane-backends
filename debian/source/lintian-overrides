@@ -1,0 +1,11 @@
+#
+# The license expat, gpl-1 and gpl-2+ are included 
+#
+missing-license-paragraph-in-dep5-copyright
+#missing-license-paragraph-in-dep5-copyright expat and/or gpl-2+
+
+#
+# multiple licenses are allowed
+#
+space-in-std-shortname-in-dep5-copyright
+#space-in-std-shortname-in-dep5-copyright expat and/or gpl-2+

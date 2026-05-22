@@ -4,3 +4,4 @@ usr/bin/sane-find-scanner
 usr/bin/scanimage
 usr/sbin/saned
 usr/bin/umax_pp
+usr/share/doc/libsane/saned/saned.install.md usr/share/doc/sane-utils/saned.install.md

@@ -48,7 +48,7 @@ header_callback(void *str, size_t size, size_t nmemb, void *userp)
     char *content = realloc(header->memory, header->size + realsize + 1);
 
     if (content == NULL) {
-        DBG( 1, "Not enough memory (realloc returned NULL)\n");
+        DBG( 10, "Not enough memory (realloc returned NULL)\n");
         return (0);
     }
     header->memory = content;
@@ -72,7 +72,7 @@ convert_elements(SANE_String_Const str)
         return (SANE_VALUE_SCAN_MODE_GRAY);
     else if (strcmp(str, "RGB24") == 0)
         return (SANE_VALUE_SCAN_MODE_COLOR);
-#if(defined HAVE_POPPLER_GLIB)
+#if HAVE_POPPLER_GLIB
     else if (strcmp(str, "BlackAndWhite1") == 0)
         return (SANE_VALUE_SCAN_MODE_LINEART);
 #endif
@@ -201,8 +201,10 @@ find_valor_of_array_variables(xmlNode *node, capabilities_t *scanner, int type)
 {
     const char *name = (const char *)node->name;
     if (strcmp(name, "ColorMode") == 0) {
+#ifndef HAVE_POPPLER_GLIB
 	const char *color = (SANE_String_Const)xmlNodeGetContent(node);
-        if (type == PLATEN || strcmp(color, "BlackAndWhite1"))
+        if (strcmp(color, "BlackAndWhite1"))
+#endif
           scanner->caps[type].ColorModes = char_to_array(scanner->caps[type].ColorModes, &scanner->caps[type].ColorModesSize, (SANE_String_Const)xmlNodeGetContent(node), 1);
     }
     else if (strcmp(name, "ContentType") == 0)
@@ -231,14 +233,14 @@ find_valor_of_array_variables(xmlNode *node, capabilities_t *scanner, int type)
             }
 #endif
 #if(defined HAVE_TIFFIO_H)
-            else if(type == PLATEN && !strcmp(scanner->caps[type].DocumentFormats[i], "image/tiff"))
+            else if(!strcmp(scanner->caps[type].DocumentFormats[i], "image/tiff"))
             {
                have_tiff = SANE_TRUE;
 	       scanner->caps[type].have_tiff = i;
             }
 #endif
-#if(defined HAVE_POPPLER_GLIB)
-            else if(type == PLATEN && !strcmp(scanner->caps[type].DocumentFormats[i], "application/pdf"))
+#if HAVE_POPPLER_GLIB
+            else if(!strcmp(scanner->caps[type].DocumentFormats[i], "application/pdf"))
             {
                have_pdf = SANE_TRUE;
 	       scanner->caps[type].have_pdf = i;
@@ -432,7 +434,7 @@ print_xml_c(xmlNode *node, ESCL_Device *device, capabilities_t *scanner, int typ
         }
         if (!strcmp((const char *)node->name, "Version")&& node->ns && node->ns->prefix){
             if (!strcmp((const char*)node->ns->prefix, "pwg"))
-                device->version = atof ((const char *)xmlNodeGetContent(node));
+                device->version = strdup((const char *)xmlNodeGetContent(node));
 	}
         if (!strcmp((const char *)node->name, "MakeAndModel")){
             device->model_name = strdup((const char *)xmlNodeGetContent(node));
@@ -564,9 +566,9 @@ escl_capabilities(ESCL_Device *device, char *blacklist, SANE_Status *status)
     curl_easy_setopt(curl_handle, CURLOPT_MAXREDIRS, 3L);
     CURLcode res = curl_easy_perform(curl_handle);
     if (res == CURLE_OK)
-        DBG( 1, "Create NewJob : the scanner header responded : [%s]\n", header->memory);
+        DBG( 10, "Create NewJob : the scanner header responded : [%s]\n", header->memory);
     if (res != CURLE_OK) {
-        DBG( 1, "The scanner didn't respond: %s\n", curl_easy_strerror(res));
+        DBG( 10, "The scanner didn't respond: %s\n", curl_easy_strerror(res));
         *status = SANE_STATUS_INVAL;
         goto clean_data;
     }
@@ -588,7 +590,6 @@ escl_capabilities(ESCL_Device *device, char *blacklist, SANE_Status *status)
         strstr(header->memory, "Server: HP_Compact_Server"))
         device->hack = curl_slist_append(NULL, "Host: localhost");
 
-    device->version = 0.0;
     scanner->source = 0;
     scanner->Sources = (SANE_String_Const *)malloc(sizeof(SANE_String_Const) * 4);
     for (i = 0; i < 4; i++)

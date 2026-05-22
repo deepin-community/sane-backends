@@ -53,6 +53,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <syslog.h>
 #include <time.h>
@@ -78,6 +79,9 @@
 #include <arpa/inet.h>
 
 #include <sys/wait.h>
+#ifdef HAVE_PIDFD_OPEN
+#include <sys/pidfd.h>
+#endif
 
 #include <pwd.h>
 #include <grp.h>
@@ -167,8 +171,6 @@ poll (struct pollfd *ufds, unsigned int nfds, int timeout)
 # define SANED_SERVICE_DNS "_sane-port._tcp"
 # define SANED_NAME "saned"
 
-pid_t avahi_pid = -1;
-
 char *avahi_svc_name;
 
 static AvahiClient *avahi_client = NULL;
@@ -221,12 +223,35 @@ static AvahiEntryGroup *avahi_group = NULL;
 # define PATH_MAX 1024
 #endif
 
+/* Linked list of child processes */
+enum saned_child_type {
+  SANED_CHILD_CLIENT,
+  SANED_CHILD_AVAHI,
+};
 struct saned_child {
+  enum saned_child_type type;
   pid_t pid;
+  int pidfd;
   struct saned_child *next;
 };
 struct saned_child *children;
 int numchildren;
+
+/* Linked list of fds to be polled */
+enum saned_fd_type {
+  SANED_FD_LISTENER,
+  SANED_FD_PROCESS,
+};
+struct saned_fd
+{
+  enum saned_fd_type type;
+  int fd;
+  short interesting_events;
+  struct saned_fd *next;
+};
+struct saned_fd *saned_fds;
+int num_saned_fds;
+
 
 #define SANED_CONFIG_FILE "saned.conf"
 #define SANED_PID_FILE    "/var/run/saned.pid"
@@ -253,10 +278,12 @@ static int debug;
 static int run_mode;
 static int run_foreground;
 static int run_once;
+static int allow_network;
 static int data_connect_timeout = 4000;
 static Handle *handle;
 static char *bind_addr;
 static short bind_port = -1;
+static size_t buffer_size = (1 * 1024 * 1024);
 static union
 {
   int w;
@@ -1651,168 +1678,186 @@ store_reclen (SANE_Byte * buf, size_t buf_size, int i, size_t reclen)
 static void
 do_scan (Wire * w, int h, int data_fd)
 {
-  int num_fds, be_fd = -1, reader, writer, bytes_in_buf, status_dirty = 0;
+  int num_fds, be_fd = -1, reader, bytes_in_buf, status_dirty = 0;
+  size_t writer;
   SANE_Handle be_handle = handle[h].handle;
   struct timeval tv, *timeout = 0;
   fd_set rd_set, rd_mask, wr_set, wr_mask;
-  SANE_Byte buf[8192];
+  SANE_Byte *buf = NULL;
   SANE_Status status;
-  long int nwritten;
+  ssize_t nwritten;
   SANE_Int length;
   size_t nbytes;
 
   DBG (3, "do_scan: start\n");
 
-  FD_ZERO (&rd_mask);
-  FD_SET (w->io.fd, &rd_mask);
-  num_fds = w->io.fd + 1;
-
-  FD_ZERO (&wr_mask);
-  FD_SET (data_fd, &wr_mask);
-  if (data_fd >= num_fds)
-    num_fds = data_fd + 1;
-
-  sane_set_io_mode (be_handle, SANE_TRUE);
-  if (sane_get_select_fd (be_handle, &be_fd) == SANE_STATUS_GOOD)
+  /*
+   * Allocate the read buffer.
+   *
+   */
+  buf = malloc (buffer_size);
+  if (!buf)
     {
-      FD_SET (be_fd, &rd_mask);
-      if (be_fd >= num_fds)
-	num_fds = be_fd + 1;
+      status = SANE_STATUS_NO_MEM;
+      DBG (DBG_ERR, "do_scan: failed to allocate read buffer (%zu bytes)\n",
+           buffer_size);
     }
   else
     {
-      memset (&tv, 0, sizeof (tv));
-      timeout = &tv;
+      FD_ZERO(&rd_mask);
+      FD_SET(w->io.fd, &rd_mask);
+      num_fds = w->io.fd + 1;
+
+      FD_ZERO(&wr_mask);
+      FD_SET(data_fd, &wr_mask);
+      if (data_fd >= num_fds)
+        num_fds = data_fd + 1;
+
+      sane_set_io_mode (be_handle, SANE_TRUE);
+      if (sane_get_select_fd (be_handle, &be_fd) == SANE_STATUS_GOOD)
+        {
+          FD_SET(be_fd, &rd_mask);
+          if (be_fd >= num_fds)
+            num_fds = be_fd + 1;
+        }
+      else
+        {
+          memset (&tv, 0, sizeof(tv));
+          timeout = &tv;
+        }
+
+      status = SANE_STATUS_GOOD;
+      reader = writer = bytes_in_buf = 0;
+      do
+        {
+          rd_set = rd_mask;
+          wr_set = wr_mask;
+          if (select (num_fds, &rd_set, &wr_set, 0, timeout) < 0)
+            {
+              if (be_fd >= 0 && errno == EBADF)
+                {
+                  /* This normally happens when a backend closes a select
+                   filedescriptor when reaching the end of file.  So
+                   pass back this status to the client: */
+                  FD_CLR(be_fd, &rd_mask);
+                  be_fd = -1;
+                  /* only set status_dirty if EOF hasn't been already detected */
+                  if (status == SANE_STATUS_GOOD)
+                    status_dirty = 1;
+                  status = SANE_STATUS_EOF;
+                  DBG (DBG_INFO, "do_scan: select_fd was closed --> EOF\n");
+                  continue;
+                }
+              else
+                {
+                  status = SANE_STATUS_IO_ERROR;
+                  DBG (DBG_ERR, "do_scan: select failed (%s)\n",
+                       strerror (errno));
+                  break;
+                }
+            }
+
+          if (bytes_in_buf)
+            {
+              if (FD_ISSET(data_fd, &wr_set))
+                {
+                  if (bytes_in_buf > 0)
+                    {
+                      /* write more input data */
+                      nbytes = bytes_in_buf;
+                      if (writer + nbytes > buffer_size)
+                        nbytes = buffer_size - writer;
+                      DBG (DBG_INFO,
+                           "do_scan: trying to write %d bytes to client\n",
+                           nbytes);
+                      nwritten = write (data_fd, buf + writer, nbytes);
+                      DBG (DBG_INFO, "do_scan: wrote %ld bytes to client\n",
+                           nwritten);
+                      if (nwritten < 0)
+                        {
+                          DBG (DBG_ERR, "do_scan: write failed (%s)\n",
+                               strerror (errno));
+                          status = SANE_STATUS_CANCELLED;
+                          handle[h].docancel = 1;
+                          break;
+                        }
+                      bytes_in_buf -= (size_t) nwritten;
+                      writer += (size_t) nwritten;
+                      if (writer == buffer_size)
+                        writer = 0;
+                    }
+                }
+            }
+          else if (status == SANE_STATUS_GOOD
+              && (timeout || FD_ISSET(be_fd, &rd_set)))
+            {
+              int i;
+
+              /* get more input data */
+
+              /* reserve 4 bytes to store the length of the data record: */
+              i = reader;
+              reader += 4;
+              if (reader >= (int) buffer_size)
+                reader -= buffer_size;
+
+              assert(bytes_in_buf == 0);
+              nbytes = buffer_size - 4;
+              if (reader + nbytes > buffer_size)
+                nbytes = buffer_size - reader;
+
+              DBG (DBG_INFO, "do_scan: trying to read %d bytes from scanner\n",
+                   nbytes);
+              status = sane_read (be_handle, buf + reader, nbytes, &length);
+              DBG (DBG_INFO, "do_scan: read %d bytes from scanner\n", length);
+
+              reset_watchdog ();
+
+              reader += length;
+              if (reader >= (int) buffer_size)
+                reader = 0;
+              bytes_in_buf += length + 4;
+
+              if (status != SANE_STATUS_GOOD)
+                {
+                  reader = i; /* restore reader index */
+                  status_dirty = 1;
+                  DBG (DBG_MSG, "do_scan: status = `%s'\n",
+                       sane_strstatus (status));
+                }
+              else
+                store_reclen (buf, buffer_size, i, length);
+            }
+
+          if (status_dirty && buffer_size - bytes_in_buf >= 5)
+            {
+              status_dirty = 0;
+              reader = store_reclen (buf, buffer_size, reader, 0xffffffff);
+              buf[reader] = status;
+              bytes_in_buf += 5;
+              DBG (DBG_MSG, "do_scan: statuscode `%s' was added to buffer\n",
+                   sane_strstatus (status));
+            }
+
+          if (FD_ISSET(w->io.fd, &rd_set))
+            {
+              DBG (DBG_MSG, "do_scan: processing RPC request on fd %d\n",
+                   w->io.fd);
+              if (process_request (w) < 0)
+                handle[h].docancel = 1;
+
+              if (handle[h].docancel)
+                break;
+            }
+        }
+      while (status == SANE_STATUS_GOOD || bytes_in_buf > 0 || status_dirty);
+      DBG (DBG_MSG, "do_scan: done, status=%s\n", sane_strstatus (status));
+
+      free (buf);
+      buf = NULL;
     }
 
-  status = SANE_STATUS_GOOD;
-  reader = writer = bytes_in_buf = 0;
-  do
-    {
-      rd_set = rd_mask;
-      wr_set = wr_mask;
-      if (select (num_fds, &rd_set, &wr_set, 0, timeout) < 0)
-	{
-	  if (be_fd >= 0 && errno == EBADF)
-	    {
-	      /* This normally happens when a backend closes a select
-		 filedescriptor when reaching the end of file.  So
-		 pass back this status to the client: */
-	      FD_CLR (be_fd, &rd_mask);
-	      be_fd = -1;
-	      /* only set status_dirty if EOF hasn't been already detected */
-	      if (status == SANE_STATUS_GOOD)
-		status_dirty = 1;
-	      status = SANE_STATUS_EOF;
-	      DBG (DBG_INFO, "do_scan: select_fd was closed --> EOF\n");
-	      continue;
-	    }
-	  else
-	    {
-	      status = SANE_STATUS_IO_ERROR;
-	      DBG (DBG_ERR, "do_scan: select failed (%s)\n", strerror (errno));
-	      break;
-	    }
-	}
-
-      if (bytes_in_buf)
-	{
-	  if (FD_ISSET (data_fd, &wr_set))
-	    {
-	      if (bytes_in_buf > 0)
-		{
-		  /* write more input data */
-		  nbytes = bytes_in_buf;
-		  if (writer + nbytes > sizeof (buf))
-		    nbytes = sizeof (buf) - writer;
-		  DBG (DBG_INFO,
-		       "do_scan: trying to write %d bytes to client\n",
-		       nbytes);
-		  nwritten = write (data_fd, buf + writer, nbytes);
-		  DBG (DBG_INFO,
-		       "do_scan: wrote %ld bytes to client\n", nwritten);
-		  if (nwritten < 0)
-		    {
-		      DBG (DBG_ERR, "do_scan: write failed (%s)\n",
-			   strerror (errno));
-		      status = SANE_STATUS_CANCELLED;
-	              handle[h].docancel = 1;
-		      break;
-		    }
-		  bytes_in_buf -= nwritten;
-		  writer += nwritten;
-		  if (writer == sizeof (buf))
-		    writer = 0;
-		}
-	    }
-	}
-      else if (status == SANE_STATUS_GOOD
-	       && (timeout || FD_ISSET (be_fd, &rd_set)))
-	{
-	  int i;
-
-	  /* get more input data */
-
-	  /* reserve 4 bytes to store the length of the data record: */
-	  i = reader;
-	  reader += 4;
-	  if (reader >= (int) sizeof (buf))
-	    reader -= sizeof(buf);
-
-	  assert (bytes_in_buf == 0);
-	  nbytes = sizeof (buf) - 4;
-	  if (reader + nbytes > sizeof (buf))
-	    nbytes = sizeof (buf) - reader;
-
-	  DBG (DBG_INFO,
-	       "do_scan: trying to read %d bytes from scanner\n", nbytes);
-	  status = sane_read (be_handle, buf + reader, nbytes, &length);
-	  DBG (DBG_INFO,
-	       "do_scan: read %d bytes from scanner\n", length);
-
-	  reset_watchdog ();
-
-	  reader += length;
-	  if (reader >= (int) sizeof (buf))
-	    reader = 0;
-	  bytes_in_buf += length + 4;
-
-	  if (status != SANE_STATUS_GOOD)
-	    {
-	      reader = i;	/* restore reader index */
-	      status_dirty = 1;
-	      DBG (DBG_MSG,
-		   "do_scan: status = `%s'\n", sane_strstatus(status));
-	    }
-	  else
-	    store_reclen (buf, sizeof (buf), i, length);
-	}
-
-      if (status_dirty && sizeof (buf) - bytes_in_buf >= 5)
-	{
-	  status_dirty = 0;
-	  reader = store_reclen (buf, sizeof (buf), reader, 0xffffffff);
-	  buf[reader] = status;
-	  bytes_in_buf += 5;
-	  DBG (DBG_MSG, "do_scan: statuscode `%s' was added to buffer\n",
-	       sane_strstatus(status));
-	}
-
-      if (FD_ISSET (w->io.fd, &rd_set))
-	{
-	  DBG (DBG_MSG,
-	       "do_scan: processing RPC request on fd %d\n", w->io.fd);
-	  if(process_request (w) < 0)
-	    handle[h].docancel = 1;
-
-	  if (handle[h].docancel)
-	    break;
-	}
-    }
-  while (status == SANE_STATUS_GOOD || bytes_in_buf > 0 || status_dirty);
-  DBG (DBG_MSG, "do_scan: done, status=%s\n", sane_strstatus (status));
-
-  if(handle[h].docancel)
+  if (handle[h].docancel)
     sane_cancel (handle[h].handle);
 
   handle[h].docancel = 0;
@@ -1849,7 +1894,7 @@ process_request (Wire * w)
 
 	reply.status =
 	  sane_get_devices ((const SANE_Device ***) &reply.device_list,
-			    SANE_TRUE);
+			    !allow_network);
 	sanei_w_reply (w, (WireCodecFunc) sanei_w_get_devices_reply, &reply);
       }
       break;
@@ -2236,8 +2281,8 @@ process_request (Wire * w)
 		     strerror (errno));
 		return 1;
 	      }
-	    fcntl (data_fd, F_SETFL, 1);      /* set non-blocking */
-	    shutdown (data_fd, 0);
+	    fcntl (data_fd, F_SETFL, O_NONBLOCK);      /* set non-blocking */
+	    shutdown (data_fd, SHUT_RD);
 	    do_scan (w, h, data_fd);
 	    close (data_fd);
 	  }
@@ -2274,12 +2319,85 @@ process_request (Wire * w)
   return 0;
 }
 
+static int
+add_fd (int fd, enum saned_fd_type type, short interesting_events)
+{
+  struct saned_fd *f;
+
+  f = (struct saned_fd *) malloc (sizeof(struct saned_fd));
+  if (f == NULL)
+    goto fail;
+
+  f->type = type;
+  f->fd = fd;
+  f->interesting_events = interesting_events;
+  f->next = saned_fds;
+
+  saned_fds = f;
+  num_saned_fds++;
+
+  return fd;
+
+fail:
+  DBG (DBG_ERR, "add_fd: cannot manage fd, %s\n", strerror(errno));
+  close(fd);
+  return -1;
+}
+
+static void
+close_fds(unsigned type_mask, int specific_fd)
+{
+  struct saned_fd *f, **nextp;
+
+  for (nextp = &saned_fds; (f = *nextp); /* */) {
+    if (type_mask & (1 << f->type) ||
+	specific_fd == f->fd) {
+      close(f->fd);
+      *nextp = f->next;
+      num_saned_fds--;
+      free(f);
+    } else
+      nextp = &f->next;
+  }
+}
+
+static void
+add_child (pid_t pid, enum saned_child_type type)
+{
+  struct saned_child *c;
+
+  c = (struct saned_child *) malloc (sizeof(struct saned_child));
+  if (c == NULL)
+    goto fail;
+
+  c->type = type;
+  c->pid = pid;
+  c->pidfd = -1;
+  c->next = children;
+
+#ifdef HAVE_PIDFD_OPEN
+  c->pidfd = pidfd_open(pid, 0);
+  if (c->pidfd == -1)
+    DBG (DBG_DBG, "add_child: could not open pidfd for child process, %s\n", strerror(errno));
+  else
+    add_fd(c->pidfd, SANED_FD_PROCESS, POLLIN);
+#endif
+
+  children = c;
+  numchildren++;
+  return;
+
+fail:
+  /* If the child process cannot be managed, kill it now. */
+  DBG (DBG_ERR, "add_child: cannot manage child process, %s\n", strerror(errno));
+  kill(pid, SIGTERM);
+}
+
 
 static int
 wait_child (pid_t pid, int *status, int options)
 {
-  struct saned_child *c;
-  struct saned_child *p = NULL;
+  struct saned_child *c, **nextp;
   int ret;
 
   ret = waitpid(pid, status, options);
@@ -2287,54 +2405,17 @@ wait_child (pid_t pid, int *status, int options)
   if (ret <= 0)
     return ret;
 
-#if WITH_AVAHI
-  if ((avahi_pid > 0) && (ret == avahi_pid))
-    {
-      avahi_pid = -1;
+  for (nextp = &children; (c = *nextp); /* */) {
+    if (c->pid == ret) {
+      *nextp = c->next;
       numchildren--;
-      return ret;
-    }
-#endif /* WITH_AVAHI */
-
-  for (c = children; (c != NULL) && (c->next != NULL); p = c, c = c->next)
-    {
-      if (c->pid == ret)
-	{
-	  if (c == children)
-	    children = c->next;
-	  else if (p != NULL)
-	    p->next = c->next;
-
-	  free(c);
-
-	  numchildren--;
-
-	  break;
-	}
-    }
-
+      close_fds(0, c->pidfd);
+      free(c);
+      break;
+    } else
+      nextp = &c->next;
+  }
   return ret;
-}
-
-static int
-add_child (pid_t pid)
-{
-  struct saned_child *c;
-
-  c = (struct saned_child *) malloc (sizeof(struct saned_child));
-
-  if (c == NULL)
-    {
-      DBG (DBG_ERR, "add_child: out of memory\n");
-      return -1;
-    }
-
-  c->pid = pid;
-  c->next = children;
-
-  children = c;
-
-  return 0;
 }
 
 
@@ -2363,7 +2444,7 @@ handle_connection (int fd)
     p = getprotobyname ("tcp");
     if (p == 0)
       {
-	DBG (DBG_WARN, "handle_connection: cannot look up `tcp' protocol number");
+	DBG (DBG_WARN, "handle_connection: cannot look up `tcp' protocol number\n");
       }
     else
       level = p->p_proto;
@@ -2371,7 +2452,7 @@ handle_connection (int fd)
 # endif	/* SOL_TCP */
   if (level == -1
       || setsockopt (wire.io.fd, level, TCP_NODELAY, &on, sizeof (on)))
-    DBG (DBG_WARN, "handle_connection: failed to put socket in TCP_NODELAY mode (%s)",
+    DBG (DBG_WARN, "handle_connection: failed to put socket in TCP_NODELAY mode (%s)\n",
 	 strerror (errno));
 #endif /* !TCP_NODELAY */
 
@@ -2413,8 +2494,8 @@ handle_client (int fd)
   else if (pid > 0)
     {
       /* parent */
-      add_child (pid);
       close(fd);
+      add_child (pid, SANED_CHILD_CLIENT);
     }
   else
     {
@@ -2425,20 +2506,28 @@ handle_client (int fd)
 }
 
 static void
+kill_children(int sig)
+{
+  struct saned_child *c;
+
+  /* The only type of child we kill is Avahi. */
+  for (c = children; c; c = c->next)
+    if (c->type == SANED_CHILD_AVAHI)
+      kill(c->pid, sig);
+}
+
+static void
 bail_out (int error)
 {
   DBG (DBG_ERR, "%sbailing out, waiting for children...\n", (error) ? "FATAL ERROR; " : "");
 
-#if WITH_AVAHI
-  if (avahi_pid > 0)
-    kill (avahi_pid, SIGTERM);
-#endif /* WITH_AVAHI */
-
+  kill_children(SIGTERM);
   while (numchildren > 0)
     wait_child (-1, NULL, 0);
 
   DBG (DBG_ERR, "bail_out: all children exited\n");
 
+  close_fds(-1, -1);
   exit ((error) ? 1 : 0);
 }
 
@@ -2460,7 +2549,7 @@ sig_int_term_handler (int signum)
 
 #if WITH_AVAHI
 static void
-saned_avahi (struct pollfd *fds, int nfds);
+saned_avahi (void);
 
 static void
 saned_create_avahi_services (AvahiClient *c);
@@ -2473,16 +2562,16 @@ saned_avahi_group_callback (AvahiEntryGroup *g, AvahiEntryGroupState state, void
 
 
 static void
-saned_avahi (struct pollfd *fds, int nfds)
+saned_avahi (void)
 {
-  struct pollfd *fdp = NULL;
+  int avahi_pid;
   int error;
 
   avahi_pid = fork ();
 
   if (avahi_pid > 0)
     {
-      numchildren++;
+      add_child(avahi_pid, SANED_CHILD_AVAHI);
       return;
     }
   else if (avahi_pid < 0)
@@ -2494,11 +2583,8 @@ saned_avahi (struct pollfd *fds, int nfds)
   signal (SIGINT, NULL);
   signal (SIGTERM, NULL);
 
-  /* Close network fds */
-  for (fdp = fds; nfds > 0; nfds--, fdp++)
-    close (fdp->fd);
-
-  free(fds);
+  /* Close parent fds */
+  close_fds(-1, -1);
 
   avahi_svc_name = avahi_strdup(SANED_NAME);
 
@@ -2833,17 +2919,15 @@ read_config (void)
 
 #ifdef SANED_USES_AF_INDEP
 static void
-do_bindings_family (int family, int *nfds, struct pollfd **fds, struct addrinfo *res)
+do_bindings_family (int family, struct addrinfo *res)
 {
   struct addrinfo *resp;
-  struct pollfd *fdp;
   short sane_port;
   int fd = -1;
   int on = 1;
   int i;
 
   sane_port = bind_port;
-  fdp = *fds;
 
   for (resp = res, i = 0; resp != NULL; resp = resp->ai_next, i++)
     {
@@ -2933,23 +3017,15 @@ do_bindings_family (int family, int *nfds, struct pollfd **fds, struct addrinfo 
 	    }
 	}
 
-      fdp->fd = fd;
-      fdp->events = POLLIN;
-
-      (*nfds)++;
-      fdp++;
+      add_fd(fd, SANED_FD_LISTENER, POLLIN);
     }
-
-  *fds = fdp;
 }
 
 static void
-do_bindings (int *nfds, struct pollfd **fds)
+do_bindings (void)
 {
   struct addrinfo *res;
-  struct addrinfo *resp;
   struct addrinfo hints;
-  struct pollfd *fdp;
   int err;
 
   DBG (DBG_DBG, "do_bindings: trying to get port for service \"%s\" (getaddrinfo)\n", SANED_SERVICE_NAME);
@@ -2974,31 +3050,15 @@ do_bindings (int *nfds, struct pollfd **fds)
 	}
     }
 
-  for (resp = res, *nfds = 0; resp != NULL; resp = resp->ai_next, (*nfds)++)
-    ;
-
-  *fds = malloc (*nfds * sizeof (struct pollfd));
-
-  if (fds == NULL)
-    {
-      DBG (DBG_ERR, "do_bindings: not enough memory for fds\n");
-      freeaddrinfo (res);
-      bail_out (1);
-    }
-
-  fdp = *fds;
-  *nfds = 0;
-
   /* bind IPv6 first, IPv4 second */
 #ifdef ENABLE_IPV6
-  do_bindings_family (AF_INET6, nfds, &fdp, res);
+  do_bindings_family (AF_INET6, res);
 #endif
-  do_bindings_family (AF_INET, nfds, &fdp, res);
+  do_bindings_family (AF_INET, res);
 
-  resp = NULL;
   freeaddrinfo (res);
 
-  if (*nfds <= 0)
+  if (res == NULL)
     {
       DBG (DBG_ERR, "do_bindings: couldn't bind an address. Exiting.\n");
       bail_out (1);
@@ -3008,7 +3068,7 @@ do_bindings (int *nfds, struct pollfd **fds)
 #else /* !SANED_USES_AF_INDEP */
 
 static void
-do_bindings (int *nfds, struct pollfd **fds)
+do_bindings (void)
 {
   struct sockaddr_in sin;
   struct servent *serv;
@@ -3032,15 +3092,6 @@ do_bindings (int *nfds, struct pollfd **fds)
       DBG (DBG_WARN, "do_bindings: to your /etc/services file (or equivalent). Proceeding anyway.\n");
     }
 
-  *nfds = 1;
-  *fds = malloc (*nfds * sizeof (struct pollfd));
-
-  if (fds == NULL)
-    {
-      DBG (DBG_ERR, "do_bindings: not enough memory for fds\n");
-      bail_out (1);
-    }
-
   memset (&sin, 0, sizeof (sin));
 
   sin.sin_family = AF_INET;
@@ -3055,24 +3106,23 @@ do_bindings (int *nfds, struct pollfd **fds)
 
   DBG (DBG_DBG, "do_bindings: setsockopt ()\n");
   if (setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof (on)))
-    DBG (DBG_ERR, "do_bindings: failed to put socket in SO_REUSEADDR mode (%s)", strerror (errno));
+    DBG (DBG_ERR, "do_bindings: failed to put socket in SO_REUSEADDR mode (%s)\n", strerror (errno));
 
   DBG (DBG_DBG, "do_bindings: bind ()\n");
   if (bind (fd, (struct sockaddr *) &sin, sizeof (sin)) < 0)
     {
-      DBG (DBG_ERR, "do_bindings: bind failed: %s", strerror (errno));
+      DBG (DBG_ERR, "do_bindings: bind failed: %s\n", strerror (errno));
       bail_out (1);
     }
 
   DBG (DBG_DBG, "do_bindings: listen ()\n");
   if (listen (fd, 1) < 0)
     {
-      DBG (DBG_ERR, "do_bindings: listen failed: %s", strerror (errno));
+      DBG (DBG_ERR, "do_bindings: listen failed: %s\n", strerror (errno));
       bail_out (1);
     }
 
-  (*fds)->fd = fd;
-  (*fds)->events = POLLIN;
+  add_fd(fd, SANED_FD_LISTENER, POLLIN);
 }
 
 #endif /* SANED_USES_AF_INDEP */
@@ -3189,16 +3239,16 @@ runas_user (char *user)
 static void
 run_standalone (char *user)
 {
-  struct pollfd *fds = NULL;
-  struct pollfd *fdp = NULL;
-  int nfds;
+  struct pollfd *poll_set = NULL;
+  int poll_set_valid = SANE_FALSE;
+  int running = SANE_TRUE;
   int fd = -1;
   int i;
   int ret;
 
   FILE *pidfile;
 
-  do_bindings (&nfds, &fds);
+  do_bindings ();
 
   if (run_foreground == SANE_FALSE)
     {
@@ -3234,7 +3284,11 @@ run_standalone (char *user)
       else
 	DBG (DBG_ERR, "Could not write PID file: %s\n", strerror (errno));
 
-      chdir ("/");
+      if (chdir ("/") != 0)
+	{
+	  DBG (DBG_ERR, "Could not change to root directory: %s\n", strerror (errno));
+	  exit(1);
+	}
 
       dup2 (fd, STDIN_FILENO);
       dup2 (fd, STDOUT_FILENO);
@@ -3243,26 +3297,55 @@ run_standalone (char *user)
       close (fd);
 
       setsid ();
-
-      signal(SIGINT, sig_int_term_handler);
-      signal(SIGTERM, sig_int_term_handler);
     }
+
+  signal(SIGINT, sig_int_term_handler);
+  signal(SIGTERM, sig_int_term_handler);
 
   if (user)
     runas_user(user);
 
 #if WITH_AVAHI
   DBG (DBG_INFO, "run_standalone: spawning Avahi process\n");
-  saned_avahi (fds, nfds);
+  saned_avahi ();
 
   /* NOT REACHED (Avahi process) */
 #endif /* WITH_AVAHI */
 
   DBG (DBG_MSG, "run_standalone: waiting for control connection\n");
 
-  while (1)
+  while (running)
     {
-      ret = poll (fds, nfds, 500);
+      struct saned_child *child;
+      struct saned_fd *sfd;
+      int timeout_needed = SANE_FALSE;
+      int do_rebind = SANE_FALSE;
+      int do_reap;
+
+      for (child = children; child; child = child->next)
+	if (child->pidfd == -1)
+	  timeout_needed = SANE_TRUE;
+      do_reap = timeout_needed;
+
+      if (!poll_set_valid)
+	{
+	  void *new_poll_set = realloc(poll_set, num_saned_fds * sizeof *poll_set);
+	  if (new_poll_set == NULL && num_saned_fds != 0)
+	    {
+	      DBG (DBG_ERR, "run_standalone: poll set allocation failed: %s\n", strerror (errno));
+	      free(poll_set);
+	      bail_out (1);
+	    }
+	  poll_set = (struct pollfd *) new_poll_set;
+	  for (sfd = saned_fds, i = 0; sfd; sfd = sfd->next, i++) {
+	    poll_set[i].fd = sfd->fd;
+	    poll_set[i].events = sfd->interesting_events;
+	  }
+	  assert(i == num_saned_fds);
+	  poll_set_valid = SANE_TRUE;
+	}
+
+      ret = poll (poll_set, num_saned_fds, timeout_needed ? 500 : -1);
       if (ret < 0)
 	{
 	  if (errno == EINTR)
@@ -3270,59 +3353,67 @@ run_standalone (char *user)
 	  else
 	    {
 	      DBG (DBG_ERR, "run_standalone: poll failed: %s\n", strerror (errno));
-	      free (fds);
+	      close_fds(-1, -1);
 	      bail_out (1);
 	    }
 	}
 
-      /* Wait for children */
-      while (wait_child (-1, NULL, WNOHANG) > 0)
-	;
-
-      if (ret == 0)
-	continue;
-
-      for (i = 0, fdp = fds; i < nfds; i++, fdp++)
+      /* Do not allow fd list to change while iterating over poll events, otherwise
+       * we shall have to look them up each time. */
+      for (sfd = saned_fds, i = 0; ret != 0 && i < num_saned_fds; i++, sfd = sfd->next)
 	{
-	  /* Error on an fd */
-	  if (fdp->revents & (POLLERR | POLLHUP | POLLNVAL))
-	    {
-	      for (i = 0, fdp = fds; i < nfds; i++, fdp++)
-		close (fdp->fd);
+	  struct pollfd *pfd = poll_set + i;
 
-	      free (fds);
+	  assert(sfd);
+	  assert(sfd->fd == pfd->fd);
 
-	      DBG (DBG_WARN, "run_standalone: invalid fd in set, attempting to re-bind\n");
-
-	      /* Reopen sockets */
-	      do_bindings (&nfds, &fds);
-
-	      break;
-	    }
-	  else if (! (fdp->revents & POLLIN))
+	  if (pfd->revents == 0)
 	    continue;
+	  else
+	    ret--;
 
-	  fd = accept (fdp->fd, 0, 0);
-	  if (fd < 0)
-	    {
-	      DBG (DBG_ERR, "run_standalone: accept failed: %s", strerror (errno));
-	      continue;
+	  switch (sfd->type) {
+	  case SANED_FD_LISTENER:
+	    if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL))
+	      do_rebind = SANE_TRUE;
+	    else if (pfd->revents & POLLIN)
+	      {
+		fd = accept (sfd->fd, 0, 0);
+		if (fd < 0 && errno != EAGAIN)
+		  DBG (DBG_ERR, "run_standalone: accept failed: %s\n", strerror (errno));
+		else if (fd >= 0)
+		  {
+		    handle_client (fd);
+		    if (run_once == SANE_TRUE)
+		      running = SANE_FALSE; /* We have handled the only connection we're going to handle */
+		  }
+	      }
+	    break;
+	  case SANED_FD_PROCESS:
+	    if (pfd->revents & POLLIN) {
+	      do_reap = SANE_TRUE;
+	      poll_set_valid = SANE_FALSE; /* We will expect to drop a pidfd */
 	    }
+	  }
+        }
 
-	  handle_client (fd);
-
-	  if (run_once == SANE_TRUE)
-	    break; /* We have handled the only connection we're going to handle */
+      if (do_rebind)
+        {
+	  DBG (DBG_WARN, "run_standalone: invalid fd in set, attempting to re-bind\n");
+	  close_fds(1 << SANED_FD_LISTENER, -1);
+	  do_bindings ();
+	  poll_set_valid = SANE_FALSE;
 	}
 
-      if (run_once == SANE_TRUE)
-	break;
+      if (do_reap)
+	while (wait_child (-1, NULL, WNOHANG) > 0);
     }
 
-  for (i = 0, fdp = fds; i < nfds; i++, fdp++)
-    close (fdp->fd);
-
-  free (fds);
+  free(poll_set);
+  close_fds(-1, -1);
+  kill_children(SIGTERM);
+  while (numchildren > 0)
+    wait_child (-1, NULL, 0);
 }
 
 
@@ -3369,7 +3460,7 @@ run_inetd (char __sane_unused__ *sock)
 
           if (fd == -1)
       	    {
-              DBG (DBG_ERR, "run_inetd: duplicating fd failed: %s", strerror (errno));
+              DBG (DBG_ERR, "run_inetd: duplicating fd failed: %s\n", strerror (errno));
               return;
             }
         }
@@ -3379,7 +3470,7 @@ run_inetd (char __sane_unused__ *sock)
       dave_null = open ("/dev/null", O_RDWR);
       if (dave_null < 0)
         {
-          DBG (DBG_ERR, "run_inetd: could not open /dev/null: %s", strerror (errno));
+          DBG (DBG_ERR, "run_inetd: could not open /dev/null: %s\n", strerror (errno));
           return;
         }
 
@@ -3413,16 +3504,18 @@ static void usage(char *me, int err)
   fprintf (stderr,
        "Usage: %s [OPTIONS]\n\n"
        " Options:\n\n"
-       "  -a, --alone[=user]	equal to `-l -D -u user'\n"
-       "  -l, --listen		run in standalone mode (listen for connection)\n"
-       "  -u, --user=user	run as `user'\n"
-       "  -D, --daemonize	run in background\n"
-       "  -o, --once		exit after first client disconnects\n"
-       "  -d, --debug=level	set debug level `level' (default is 2)\n"
-       "  -e, --stderr		output to stderr\n"
-       "  -b, --bind=addr	bind address `addr' (default all interfaces)\n"
-       "  -p, --port=port	bind port `port` (default sane-port or 6566)\n"
-       "  -h, --help		show this help message and exit\n", me);
+       "  -a, --alone[=user]	        equal to `-l -D -u user'\n"
+       "  -l, --listen		        run in standalone mode (listen for connection)\n"
+       "  -u, --user=user	        run as `user'\n"
+       "  -n, --allow-network	        allow saned to use network scanners\n"
+       "  -D, --daemonize	        run in background\n"
+       "  -o, --once		        exit after first client disconnects\n"
+       "  -d, --debug=level	        set debug level `level' (default is 2)\n"
+       "  -e, --stderr		        output to stderr\n"
+       "  -b, --bind=addr	        bind address `addr' (default all interfaces)\n"
+       "  -p, --port=port               bind port `port` (default sane-port or 6566)\n"
+       "  -B, --buffer-size=size        set size of read buffer in KB (default: 1024)\n"
+       "  -h, --help		        show this help message and exit\n", me);
 
   exit(err);
 }
@@ -3432,17 +3525,19 @@ static int debug;
 static struct option long_options[] =
 {
 /* These options set a flag. */
-  {"help",	no_argument,		0, 'h'},
-  {"alone",	optional_argument,	0, 'a'},
-  {"listen",	no_argument,		0, 'l'},
-  {"user",	required_argument,	0, 'u'},
-  {"daemonize", no_argument,		0, 'D'},
-  {"once",	no_argument,		0, 'o'},
-  {"debug",	required_argument,	0, 'd'},
-  {"stderr",	no_argument,		0, 'e'},
-  {"bind",	required_argument,	0, 'b'},
-  {"port",	required_argument,	0, 'p'},
-  {0,		0,			0,  0 }
+  {"help",              no_argument,            0, 'h'},
+  {"alone",             optional_argument,      0, 'a'},
+  {"listen",            no_argument,            0, 'l'},
+  {"user",              required_argument,      0, 'u'},
+  {"allow-network",     no_argument,            0, 'n'},
+  {"daemonize",         no_argument,            0, 'D'},
+  {"once",              no_argument,            0, 'o'},
+  {"debug",             required_argument,      0, 'd'},
+  {"stderr",            no_argument,            0, 'e'},
+  {"bind",              required_argument,      0, 'b'},
+  {"port",              required_argument,      0, 'p'},
+  {"buffer-size",       required_argument,      0, 'B'},
+  {0,                   0,                      0,  0 }
 };
 
 int
@@ -3466,8 +3561,9 @@ main (int argc, char *argv[])
   run_mode = SANED_RUN_INETD;
   run_foreground = SANE_TRUE;
   run_once = SANE_FALSE;
+  allow_network = SANE_FALSE;
 
-  while((c = getopt_long(argc, argv,"ha::lu:Dod:eb:p:", long_options, &long_index )) != -1)
+  while((c = getopt_long(argc, argv,"ha::lu:nDod:eb:p:B:", long_options, &long_index )) != -1)
     {
       switch(c) {
       case 'a':
@@ -3481,6 +3577,9 @@ main (int argc, char *argv[])
 	break;
       case 'u':
 	user = optarg;
+	break;
+      case 'n':
+	allow_network = SANE_TRUE;
 	break;
       case 'D':
 	run_foreground = SANE_FALSE;
@@ -3498,8 +3597,25 @@ main (int argc, char *argv[])
 	bind_addr = optarg;
 	break;
       case 'p':
-	bind_port = atoi(optarg);
-	break;
+        bind_port = atoi(optarg);
+        break;
+      case 'B':
+        {
+          int buffer_arg = atoi(optarg);
+
+          if ((buffer_arg < 0) || ((size_t)buffer_arg > (SIZE_MAX / 1024)))
+            {
+              DBG (
+                  DBG_ERR,
+                  "saned: specified buffer size in KB is invalid. Default of %zuKB will be substituted.\n",
+                  buffer_size / 1024);
+            }
+          else
+            {
+              buffer_size = 1024 * (size_t)buffer_arg;
+            }
+          break;
+        }
       case 'h':
 	usage(argv[0], EXIT_SUCCESS);
 	break;
