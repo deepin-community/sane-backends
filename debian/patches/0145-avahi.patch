@@ -9,7 +9,7 @@ Index: trunk/backend/net.c
 ===================================================================
 --- trunk.orig/backend/net.c
 +++ trunk/backend/net.c
-@@ -962,10 +962,6 @@ sane_init (SANE_Int * version_code, SANE
+@@ -991,10 +991,6 @@ sane_init (SANE_Int * version_code, SANE
    first_device = NULL;
    first_handle = NULL;
  
@@ -20,7 +20,7 @@ Index: trunk/backend/net.c
    auth_callback = authorize;
  
    /* Return the version number of the sane-backends package to allow
-@@ -1117,6 +1113,11 @@ sane_init (SANE_Int * version_code, SANE
+@@ -1146,6 +1142,11 @@ sane_init (SANE_Int * version_code, SANE
        DBG (2, "sane_init: connect timeout set to %d seconds from env\n", connect_timeout);
      }
  

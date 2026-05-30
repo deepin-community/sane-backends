@@ -74,7 +74,7 @@
 static char *dir_list;
 
 const char *
-sanei_config_get_paths ()
+sanei_config_get_paths (void)
 {
 #ifdef __BEOS__
   char result[PATH_MAX];
@@ -295,6 +295,12 @@ sanei_configure_attach (const char *config_file, SANEI_Config * config,
        * So we parse the line 2 time to find an option */
       /* check if it is an option */
       lp = sanei_config_get_string (lp, &token);
+      if (NULL == token)
+        {
+          // Invalid format?
+          continue;
+        }
+
       if (strncmp (token, "option", 6) == 0)
 	{
 	  /* skip the "option" token */

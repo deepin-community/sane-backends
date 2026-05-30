@@ -1,0 +1,115 @@
+# Turkish debconf translation of sane-backends package
+# This file is distributed under the same license as the sane-backends package.
+# Nuri KÜÇÜKLER <nurikucukler@yahoo.com>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: sane-backends\n"
+"Report-Msgid-Bugs-To: sane-backends@packages.debian.org\n"
+"POT-Creation-Date: 2009-12-12 13:14+0100\n"
+"PO-Revision-Date: 2025-04-25 15:12+0300\n"
+"Last-Translator: Nuri KÜÇÜKLER <nurikucukler@yahoo.com>\n"
+"Language-Team: Debian L10n Turkish <debian-l10n-turkish@lists.debian.org>\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"X-Generator: Poedit 3.2.2\n"
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:1001
+msgid "Enable saned as a standalone server?"
+msgstr "saned tek başına sunucu olarak etkinleştirilsin mi?"
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:1001
+msgid ""
+"The saned server, when enabled, makes scanners available over the network."
+msgstr ""
+"saned sunucusu, etkinleştirildiğinde tarayıcıları ağ üzerinde kullanılabilir "
+"kılar."
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:1001
+msgid ""
+"There are two ways of running saned:\n"
+" - as an inetd service, started by the inetd superserver. In this mode,\n"
+"saned is started on demand when a client connects to the server;\n"
+" - as a standalone daemon, started at system boot. In this mode, saned\n"
+"runs in the background all by itself and listens for client connections."
+msgstr ""
+"saned çalıştırmanın iki yolu vardır:\n"
+" - inetd süpersunucusu ile başlatılan, inetd hizmeti olarak. Bu kipte,\n"
+"saned istemci sunucuya bağlandığında talep üzerine başlatılır.\n"
+" - sistem önyüklemesi sırasında başlatılan, tek başına artalan hizmeti "
+"olarak.\n"
+"Bu kipte, saned tamamen kendi başına arkaplanda çalışır ve istemci "
+"bağlantılarını dinler."
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:1001
+msgid ""
+"When run in standalone mode, saned advertises itself on the network and can "
+"be detected automatically by the SANE clients with no configuration on the "
+"client side. You still need to configure the server to accept connections "
+"from your clients. This feature is experimental and requires a running Avahi "
+"daemon."
+msgstr ""
+"saned tek başına kipinde çalıştığında, ağ üzerinde kendini tanıtır ve SANE "
+"istemcileri tarafından istemci tarafında bir yapılandırma olmadan otomatik "
+"olarak algılanır. Yine de, sunucuyu istemcilerden gelecek bağlantıları kabul "
+"etmesi için yapılandırmanız gerekir. Bu özellik deneysel durumdadır ve "
+"çalışan bir Avahi artalan hizmeti gerektirir."
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:1001
+msgid "Accept this option if you want to make use of this feature."
+msgstr "Bu özelliğin kullanılması için bu seçeneği kabul edin."
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:2001
+msgid "Add saned user to the scanner group?"
+msgstr "saned kullanıcısı scanner grubuna eklensin mi?"
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:2001
+msgid ""
+"The saned server, when enabled, makes scanners available over the network. "
+"By applying different permissions to the different scanners connected to "
+"your machine, you can control which ones will be made available over the "
+"network."
+msgstr ""
+"saned sunucusu etkinleştirildiğinde, tarayıcıları ağ üzerinde kullanılabilir "
+"kılar. Makinenize bağlanan farklı tarayıcılara farklı yetkiler vererek, "
+"hangilerinin ağ üzerinde kullanılabilir hale getirileceğini "
+"denetleyebilirsiniz."
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:2001
+msgid ""
+"Read /usr/share/doc/sane-utils/README.Debian for details on how to manage "
+"permissions for saned. By default, saned is run under the saned user and "
+"group."
+msgstr ""
+"saned yetkilerinin yönetilmesinin detayları için okuyun: /usr/share/doc/sane-"
+"utils/README.Debian. Öntanımlı olarak saned, saned kullanıcısı ve grubuna "
+"ait olarak çalışır."
+
+#. Type: boolean
+#. Description
+#: ../sane-utils.templates:2001
+msgid ""
+"Accept this option if you want to make all your scanners available over the "
+"network without restriction."
+msgstr ""
+"Tüm tarayıcılarınızı ağ üzerinde herhangi bir kısıtlama olmadan "
+"kullanılabilir duruma getirmek için bu seçeneği kabul edin."

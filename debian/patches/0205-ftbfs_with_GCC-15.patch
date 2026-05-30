@@ -1,0 +1,22 @@
+Description: Fix ftbfs with GCC-15
+Author: <name and email of author, optional>
+Origin: https://gitlab.com/sane-project/backends/-/commit/f5736eb50c3be88428f7d629b20c5c514df85b82
+Bug: https://gitlab.com/sane-project/backends/-/issues/796
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1097841
+Last-Update: 2025-03-22
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: trunk/backend/sm3600.h
+===================================================================
+--- trunk.orig/backend/sm3600.h
++++ trunk/backend/sm3600.h
+@@ -77,7 +77,8 @@ Start: 2.4.2001
+ 
+ /* ====================================================================== */
+ 
+-typedef enum { false, true } TBool;
++#include <stdbool.h>
++typedef bool TBool;
+ 
+ typedef SANE_Status TState;
+ 

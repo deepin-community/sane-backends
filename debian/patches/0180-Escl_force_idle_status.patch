@@ -1,0 +1,253 @@
+Description: Escl force idle status
+Origin: https://gitlab.com/sane-project/backends/-/merge_requests/835/diffs
+Bug: https://gitlab.com/sane-project/backends/-/issues/742
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1068794
+Forwarded: not-needed
+Last-Update: 2024-11-15
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: trunk/backend/escl/escl.c
+===================================================================
+--- trunk.orig/backend/escl/escl.c
++++ trunk/backend/escl/escl.c
+@@ -1345,7 +1345,7 @@ sane_cancel(SANE_Handle h)
+     }
+     handler->scanner->work = SANE_FALSE;
+     handler->cancel = SANE_TRUE;
+-    escl_scanner(handler->device, handler->scanner->scanJob, handler->result);
++    escl_scanner(handler->device, handler->scanner->scanJob, handler->result, SANE_TRUE);
+     free(handler->result);
+     handler->result = NULL;
+     free(handler->scanner->scanJob);
+@@ -1566,6 +1566,7 @@ sane_start(SANE_Handle h)
+     handler->decompress_scan_data = SANE_FALSE;
+     handler->end_read = SANE_FALSE;
+     if (handler->scanner->work == SANE_FALSE) {
++       escl_reset_all_jobs(handler->device);
+        SANE_Status st = escl_status(handler->device,
+                                     handler->scanner->source,
+                                     NULL,
+Index: trunk/backend/escl/escl.h
+===================================================================
+--- trunk.orig/backend/escl/escl.h
++++ trunk/backend/escl/escl.h
+@@ -252,7 +252,11 @@ SANE_Status escl_scan(capabilities_t *sc
+ 
+ void escl_scanner(const ESCL_Device *device,
+                   char *scanJob,
+-                  char *result);
++                  char *result,
++                  SANE_Bool status);
++
++SANE_Status escl_reset_all_jobs(ESCL_Device *device);
++
+ 
+ typedef void CURL;
+ 
+Index: trunk/backend/escl/escl_reset.c
+===================================================================
+--- trunk.orig/backend/escl/escl_reset.c
++++ trunk/backend/escl/escl_reset.c
+@@ -44,7 +44,32 @@ write_callback(void __sane_unused__*str,
+  *        This function is called in the 'sane_cancel' function.
+  */
+ void
+-escl_scanner(const ESCL_Device *device, char *scanJob, char *result)
++escl_delete(const ESCL_Device *device, char *uri)
++{
++    CURL *curl_handle = NULL;
++    long answer = 0;
++
++    if (uri == NULL)
++        return;
++    curl_handle = curl_easy_init();
++    if (curl_handle != NULL) {
++        escl_curl_url(curl_handle, device, uri);
++	curl_easy_setopt(curl_handle, CURLOPT_CUSTOMREQUEST, "DELETE");
++        if (curl_easy_perform(curl_handle) == CURLE_OK) {
++            curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &answer);
++            return;
++        }
++        curl_easy_cleanup(curl_handle);
++    }
++}
++
++/**
++ * \fn void escl_scanner(const ESCL_Device *device, char *result)
++ * \brief Function that resets the scanner after each scan, using curl.
++ *        This function is called in the 'sane_cancel' function.
++ */
++void
++escl_scanner(const ESCL_Device *device, char *scanJob, char *result,  SANE_Bool status)
+ {
+     CURL *curl_handle = NULL;
+     const char *scan_jobs = "/eSCL/";
+@@ -70,10 +95,15 @@ CURL_CALL:
+             if (i >= 15) return;
+         }
+         curl_easy_cleanup(curl_handle);
+-        if (SANE_STATUS_GOOD != escl_status(device,
+-                                            PLATEN,
+-                                            NULL,
+-                                            NULL))
+-            goto CURL_CALL;
++	char* end = strrchr(scan_cmd, '/');
++	*end = 0;
++        escl_delete(device, scan_cmd);
++	if (status) {
++            if (SANE_STATUS_GOOD != escl_status(device,
++                                                PLATEN,
++                                                NULL,
++                                                NULL))
++                goto CURL_CALL;
++	}
+     }
+ }
+Index: trunk/backend/escl/escl_status.c
+===================================================================
+--- trunk.orig/backend/escl/escl_status.c
++++ trunk/backend/escl/escl_status.c
+@@ -29,6 +29,7 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <unistd.h>
+ 
+ #include <libxml/parser.h>
+ 
+@@ -270,3 +271,135 @@ clean_data:
+     }
+     return (status);
+ }
++
++static void
++print_xml_job_finish(xmlNode *node,
++                     SANE_Status *job)
++{
++    while (node) {
++        if (node->type == XML_ELEMENT_NODE) {
++            if (find_nodes_s(node)) {
++                if (strcmp((const char *)node->name, "JobState") == 0) {
++                    const char *state = (const char *)xmlNodeGetContent(node);
++                    if (!strcmp(state, "Canceled")) {
++                        *job = SANE_STATUS_GOOD;
++                        DBG(10, "jobId Completed SANE_STATUS_GOOD\n");
++                    }
++                    else if (!strcmp(state, "Aborted")) {
++                        *job = SANE_STATUS_GOOD;
++                        DBG(10, "jobId Completed SANE_STATUS_GOOD\n");
++                    }
++                    else if (!strcmp(state, "Completed")) {
++                        *job = SANE_STATUS_GOOD;
++                        DBG(10, "jobId Completed SANE_STATUS_GOOD\n");
++                    }
++                }
++            }
++        }
++        print_xml_job_finish(node->children, job);
++        node = node->next;
++    }
++}
++
++static void
++print_xml_reset_all_jobs (xmlNode *node,
++                          ESCL_Device *device)
++{
++    DBG(10, "print_xml_reset_all_jobs\n");
++    SANE_Status status = SANE_STATUS_DEVICE_BUSY;
++    while (node) {
++        if (node->type == XML_ELEMENT_NODE) {
++            if (find_nodes_s(node)) {
++                if (strcmp((const char *)node->name, "JobUri") == 0) {
++                    DBG(10, "print_xml_reset_all_jobs: %s\n", node->name);
++		    if (device != NULL) {
++			print_xml_job_finish (node, &status);
++			if (status == SANE_STATUS_DEVICE_BUSY) {
++			    char *jobUri = (char *)xmlNodeGetContent(node);
++			    char *job = strrchr((const char *)jobUri, '/');
++			    char *scanj = NULL;
++			    if (job != NULL) {
++			        if (strstr(jobUri,"ScanJobs"))
++			           scanj = strdup("ScanJobs");
++			        else
++			           scanj = strdup("ScanJob");
++                                DBG(10, "print_xml_reset_all_jobs: %s/%s\n", scanj, job);
++                                escl_scanner(device, scanj, job, SANE_FALSE);
++			        free(scanj);
++			    }
++                            DBG(10, "print_xml_reset_all_jobs: sleep to finish the job\n");
++		        }
++		    }
++                }
++            }
++        }
++        print_xml_reset_all_jobs (node->children,
++                                  device);
++        node = node->next;
++    }
++}
++
++/**
++ * \fn SANE_Status escl_reset_all_jobs (ESCL_Device *device, , char *scanJob)
++ * \brief Function that forces the end of jobs, using curl.
++ *          This function is called in the 'sane_start' function.
++ *
++ * \return status (if everything is OK, status = SANE_STATUS_GOOD, otherwise, SANE_STATUS_NO_MEM/SANE_STATUS_INVAL)
++ */
++SANE_Status
++escl_reset_all_jobs(ESCL_Device *device)
++{
++    CURL *curl_handle = NULL;
++    xmlDoc *data = NULL;
++    xmlNode *node = NULL;
++    struct idle *var = NULL;
++    const char *scanner_status = "/eSCL/ScannerStatus";
++    SANE_Status status = SANE_STATUS_DEVICE_BUSY;
++
++    DBG(10, "escl_reset_all_jobs\n");
++    if (device == NULL)
++        return (SANE_STATUS_NO_MEM);
++    DBG(10, "1 - escl_reset_all_jobs\n");
++    var = (struct idle*)calloc(1, sizeof(struct idle));
++    if (var == NULL)
++        return (SANE_STATUS_NO_MEM);
++    DBG(10, "2 - escl_reset_all_jobs\n");
++    var->memory = malloc(1);
++    var->size = 0;
++    curl_handle = curl_easy_init();
++
++    escl_curl_url(curl_handle, device, scanner_status);
++    curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, memory_callback_s);
++    curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)var);
++    curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
++    curl_easy_setopt(curl_handle, CURLOPT_MAXREDIRS, 3L);
++    CURLcode res = curl_easy_perform(curl_handle);
++    if (res != CURLE_OK) {
++        DBG( 1, "The scanner didn't respond: %s\n", curl_easy_strerror(res));
++        status = SANE_STATUS_INVAL;
++        goto clean_data1;
++    }
++    DBG(10, "3 - escl_reset_all_jobs\n");
++    DBG( 10, "eSCL : Status : %s.\n", var->memory);
++    data = xmlReadMemory(var->memory, var->size, "file.xml", NULL, 0);
++    if (data == NULL) {
++        status = SANE_STATUS_NO_MEM;
++        goto clean_data1;
++    }
++    node = xmlDocGetRootElement(data);
++    if (node == NULL) {
++        status = SANE_STATUS_NO_MEM;
++        goto clean1;
++    }
++    print_xml_reset_all_jobs (node, device);
++    status = SANE_STATUS_GOOD;
++clean1:
++    xmlFreeDoc(data);
++clean_data1:
++    xmlCleanupParser();
++    xmlMemoryDump();
++    curl_easy_cleanup(curl_handle);
++    free(var->memory);
++    free(var);
++    return status;
++}

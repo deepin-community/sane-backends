@@ -359,6 +359,9 @@
          - add support for reading the total and roller counters
       v64 2022-11-18, CQ, MAN
          - add complete support for imprinters on X10C (#585)
+      v65 2023-06-06, MAN
+         - fix imprinter support (#672)
+         - update attach_one and other init functions
 
    SANE FLOW DIAGRAM
 
@@ -411,7 +414,7 @@
 #include "canon_dr.h"
 
 #define DEBUG 1
-#define BUILD 64
+#define BUILD 65
 
 /* values for SANE_DEBUG_CANON_DR env var:
  - errors           5
@@ -460,6 +463,7 @@
 #define STRING_IMPRINTER_ADDON_BoW SANE_I18N("Black-on-White")
 #define STRING_IMPRINTER_ADDON_BoI SANE_I18N("Black-on-Image")
 #define STRING_IMPRINTER_ADDON_WoB SANE_I18N("White-on-Black")
+
 
 /* Also set via config file. */
 static int global_buffer_size;
@@ -1007,23 +1011,19 @@ attach_one (const char *device_name, int connType)
   /* this detects imprinters if they are available */
   ret = init_imprinters (s);
   if (ret != SANE_STATUS_GOOD) {
-    DBG (5, "attach_one: errors while trying to detect optional imprinters, continuing\n");
+    DBG (5, "attach_one: unable to init_imprinters, continuing\n");
   }
 
   /* enable/read the buttons */
   ret = init_panel (s);
   if (ret != SANE_STATUS_GOOD) {
-    disconnect_fd(s);
-    free (s);
-    DBG (5, "attach_one: model failed\n");
-    return ret;
+    DBG (5, "attach_one: unable init_panel, continuing\n");
   }
 
   /* enable/read the lifecycle counters */
   ret = init_counters (s);
   if (ret != SANE_STATUS_GOOD) {
-    DBG (5, "attach_one: unable to detect lifecycle counters, continuing\n");
-    return ret;
+    DBG (5, "attach_one: unable to init_counters, continuing\n");
   }
 
   /* sets SANE option 'values' to good defaults */
@@ -1035,6 +1035,7 @@ attach_one (const char *device_name, int connType)
     return ret;
   }
 
+  /* sets the s->opt array to blank */
   ret = init_options (s);
   if (ret != SANE_STATUS_GOOD) {
     disconnect_fd(s);
@@ -1564,6 +1565,7 @@ init_model (struct scanner *s)
     s->fcal_dest = FCAL_DEST_SW;
     s->sw_lut = 1;
     s->invert_tly = 1;
+    s->has_function_number = 1;
 
     /*only in Y direction, so we trash them in X*/
     s->std_res_x[DPI_100]=0;
@@ -1988,19 +1990,26 @@ init_imprinters (struct scanner *s)
 {
   SANE_Status ret = SANE_STATUS_GOOD;
 
-  s->has_pre_imprinter = 0;
-  s->has_post_imprinter = 0;
+  DBG (10, "init_imprinters: start\n");
 
+  /* check the pre imprinter first */
   ret = detect_imprinter(s,R_PRE_IMPRINTER);
-  if(ret != SANE_STATUS_GOOD){
-    return ret;
+  if(ret == SANE_STATUS_GOOD){
+    DBG (15, "init_imprinters: preimprinter found\n");
+    s->has_pre_imprinter = 1;
   }
 
-  ret = detect_imprinter(s,R_POST_IMPRINTER);
-  if(ret != SANE_STATUS_GOOD){
-    return ret;
+  /* these scanners only support one imprinter */
+  /* so only ask for postimp if preimp not found */
+  else if(ret == SANE_STATUS_UNSUPPORTED){
+    ret = detect_imprinter(s,R_POST_IMPRINTER);
+    if(ret == SANE_STATUS_GOOD){
+      DBG (15, "init_imprinters: postimprinter found\n");
+      s->has_post_imprinter = 1;
+    }
   }
 
+  DBG (10, "init_imprinters: finish\n");
   return ret;
 }
 
@@ -2018,7 +2027,6 @@ init_panel (struct scanner *s)
   if(ret){
     DBG (5, "init_panel: disabling read_panel\n");
     s->can_read_panel = 0;
-    ret = SANE_STATUS_GOOD;
   }
 
   s->panel_enable_led = 1;
@@ -2027,7 +2035,6 @@ init_panel (struct scanner *s)
   if(ret){
     DBG (5, "init_panel: disabling send_panel\n");
     s->can_write_panel = 0;
-    ret = SANE_STATUS_GOOD;
   }
 
   DBG (10, "init_panel: finish\n");
@@ -2049,7 +2056,6 @@ init_counters (struct scanner *s)
   if(ret){
     DBG (5, "init_counters: disabling lifecycle counters\n");
     s->can_read_lifecycle_counters = 0;
-    return ret;
   }
 
   DBG (10, "init_counters: finish\n");
@@ -3210,6 +3216,22 @@ sane_get_option_descriptor (SANE_Handle handle, SANE_Int option)
       opt->cap = SANE_CAP_INACTIVE;
   }
 
+  if(option==OPT_FUNCTION_NUMBER){
+    opt->name = "function-number";
+    opt->title = "Function number";
+    opt->desc = "Function number set on panel";
+    opt->type = SANE_TYPE_INT;
+    opt->unit = SANE_UNIT_NONE;
+    opt->constraint_type = SANE_CONSTRAINT_RANGE;
+    opt->constraint.range = &s->counter_range;
+    s->counter_range.min=1;
+    s->counter_range.max=9;
+    s->counter_range.quant=1;
+    opt->cap = SANE_CAP_SOFT_DETECT | SANE_CAP_HARD_SELECT | SANE_CAP_ADVANCED;
+    if(!s->can_read_panel || !s->has_function_number)
+      opt->cap = SANE_CAP_INACTIVE;
+  }
+
   if(option==OPT_ADF_LOADED){
     opt->name = "adf-loaded";
     opt->title = "ADF Loaded";
@@ -3648,6 +3670,11 @@ sane_control_option (SANE_Handle handle, SANE_Int option,
         case OPT_TOTALCOUNTER:
           ret = read_counters(s);
           *val_p = s->total_counter;
+          return ret;
+
+        case OPT_FUNCTION_NUMBER:
+          ret = read_panel(s, OPT_FUNCTION_NUMBER);
+          *val_p = s->panel_function_number;
           return ret;
 
         case OPT_ADF_LOADED:
@@ -4670,6 +4697,7 @@ read_panel(struct scanner *s,SANE_Int option)
       s->panel_bypass_mode = get_R_PANEL_bypass_mode(in);
       s->panel_enable_led = get_R_PANEL_enable_led(in);
       s->panel_counter = get_R_PANEL_counter(in);
+      s->panel_function_number = get_R_PANEL_function_number(in);
 
       ret = SANE_STATUS_GOOD;
     }
@@ -5249,8 +5277,13 @@ load_imprinting_settings(struct scanner *s)
   return ret;
 }
 
+/* look for a particular imprinter
+ * SANE_STATUS_GOOD = found
+ * SANE_STATUS_UNSUPPORTED = not found
+ * SANE_STATUS_INVAL = all other errors
+ */
 static SANE_Status
-detect_imprinter(struct scanner *s,SANE_Int option)
+detect_imprinter(struct scanner *s, SANE_Int imp_side)
 {
   SANE_Status ret = SANE_STATUS_GOOD;
 
@@ -5260,12 +5293,12 @@ detect_imprinter(struct scanner *s,SANE_Int option)
   unsigned char in[R_IMPRINTER_len];
   size_t inLen = R_IMPRINTER_len;
 
-  DBG (10, "detect_imprinter: start %d\n", option);
+  DBG (10, "detect_imprinter: start %d\n", imp_side);
 
   memset(cmd,0,cmdLen);
   set_SCSI_opcode(cmd, READ_code);
   set_R_datatype_code(cmd, SR_datatype_imprinters);
-  set_R_xfer_uid(cmd, option);
+  set_R_xfer_uid(cmd, imp_side);
   set_R_xfer_length(cmd, inLen);
 
   ret = do_cmd(
@@ -5275,23 +5308,24 @@ detect_imprinter(struct scanner *s,SANE_Int option)
     in, &inLen
   );
 
-  if (ret == SANE_STATUS_GOOD || ret == SANE_STATUS_EOF) {
+  /* some scanners return eof for success, so we change it */
+  if (ret == SANE_STATUS_EOF) {
     ret = SANE_STATUS_GOOD;
   }
 
-  int imprinter_found = get_R_IMPRINTER_found(in);
-  const char* imprinter_type = "unknown";
-  if (option == R_PRE_IMPRINTER){
-    s->has_pre_imprinter = imprinter_found;
-    imprinter_type = "pre-imprinter";
-  }
-  else if (option == R_POST_IMPRINTER){
-    s->has_post_imprinter = imprinter_found;
-    imprinter_type = "post-imprinter";
+  /* failed commands are 'inval' */
+  if(ret){
+    DBG (15, "detect_imprinter: error, converting %d to invalid\n", ret);
+    ret = SANE_STATUS_INVAL;
   }
 
-  DBG (10, "detect_imprinter:  type: %s. found status bit: %d \n",imprinter_type,imprinter_found);
+  /* negative responses are 'unsupported' */
+  else if(!get_R_IMPRINTER_found(in)){
+    DBG (15, "detect_imprinter: not found, converting to unsupported\n");
+    ret = SANE_STATUS_UNSUPPORTED;
+  }
 
+  DBG (10, "detect_imprinter: finish %d\n", ret);
   return ret;
 }
 
