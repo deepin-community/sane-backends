@@ -1,3 +1,9 @@
+sane-backends (1.4.0-1deepin1) unstable; urgency=medium
+
+  * Provides: libsane.
+
+ -- lhdjply <lhdjply@126.com>  Sat, 30 May 2026 08:05:49 +0800
+
 sane-backends (1.4.0-1) unstable; urgency=medium
 
   * New upstream release.
