@@ -1,1 +1,2 @@
-/lib/udev/hwdb.d/
+/usr/lib/udev/hwdb.d/
+/usr/lib/udev/rules.d/

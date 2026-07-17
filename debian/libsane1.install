@@ -1,3 +1,2 @@
 usr/lib/*/*.so.*
 usr/lib/*/sane/*.so.*
-debian/99-libsane1.rules /lib/udev/rules.d/
