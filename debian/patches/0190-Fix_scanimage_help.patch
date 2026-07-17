@@ -1,0 +1,20 @@
+Description: Fix scanimage --help output
+Author: Jörg Frings-Fürst <debian@jff.email>
+Bug-Debian: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1094671
+Forwarded: https://gitlab.com/sane-project/backends/-/issues/795
+Last-Update: 2025-03-16
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+Index: trunk/frontend/scanimage.c
+===================================================================
+--- trunk.orig/frontend/scanimage.c
++++ trunk/frontend/scanimage.c
+@@ -2372,7 +2372,7 @@ Parameters are separated by a blank from
+                            %%n (newline)\n\
+ -b, --batch[=FORMAT]       working in batch mode, FORMAT is `out%%d.pnm' `out%%d.tif'\n\
+                            `out%%d.png' or `out%%d.jpg' by default depending on --format\n\
+-                           This option is incompatible with --output-file.");
++                           This option is incompatible with --output-file.\n");
+       printf ("\
+     --batch-start=#        page number to start naming files with\n\
+     --batch-count=#        how many pages to scan in batch mode\n\

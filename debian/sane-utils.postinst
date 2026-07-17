@@ -41,6 +41,12 @@ if [ "$1" = "configure" ] || [ "$1" = "reconfigure" ]; then
     # Stop debconf; output to stdout after this point. update-inetd needs debconf.
     db_stop
 
+    # Add the scanner system group if it doesn't exist
+    if ! getent group | grep -q "^scanner:"; then
+	echo "Adding scanner group..."
+	addgroup --quiet --system scanner || true
+    fi
+
     # Create saned user/group if they do not exist
     if ! getent passwd | grep -q "^saned:"; then
 	echo "Adding saned group and user..."
