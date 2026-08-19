@@ -1,3 +1,9 @@
+sane-backends (1.3.1-3deepin1) unstable; urgency=medium
+
+  * Add Provides: libsane to libsane1 package
+
+ -- lichenggang <lichenggang@uniontech.com>  Wed, 19 Aug 2026 13:14:23 +0800
+
 sane-backends (1.3.1-3) unstable; urgency=medium
 
   * sane-utils.postinst:
